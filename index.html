@@ -5007,17 +5007,35 @@ const Cloud = (() => {
     }
   }
 
-  async function signIn() {
-    if (!auth) { set({ status: 'error', msg: 'Firebase n’est pas chargé (connexion Internet ?).' }); return; }
-    try {
-      await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider());
-    } catch (e) {
-      const c = e && e.code;
-      if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
-      set({ status: 'error', msg: c === 'auth/unauthorized-domain'
-        ? 'Ce site n’est pas autorisé dans Firebase : Authentication > Paramètres > Domaines autorisés.'
-        : 'Connexion impossible : ' + errText(e) });
-    }
+  const authError = (e) => {
+    const c = e && e.code;
+    if (c === 'auth/invalid-email') return 'Cette adresse e-mail n’est pas valide.';
+    if (c === 'auth/missing-password') return 'Écris ton mot de passe.';
+    if (c === 'auth/weak-password') return 'Mot de passe trop court : 6 caractères minimum.';
+    if (c === 'auth/email-already-in-use') return 'Un compte existe déjà avec cette adresse : utilise « Se connecter ».';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') return 'Adresse ou mot de passe incorrect. Pas encore de compte ? Utilise « Créer mon compte ».';
+    if (c === 'auth/too-many-requests') return 'Trop d’essais : patiente quelques minutes avant de réessayer.';
+    if (c === 'auth/network-request-failed') return 'Pas de connexion Internet.';
+    if (c === 'auth/operation-not-allowed' || c === 'auth/configuration-not-found') return 'La connexion par e-mail n’est pas activée dans Firebase (Authentication > Méthode de connexion > E-mail/Mot de passe).';
+    return 'Connexion impossible : ' + errText(e);
+  };
+  async function signIn(email, password) {
+    if (!auth) { set({ status: 'error', msg: 'Firebase n’est pas chargé (connexion Internet ?).' }); return false; }
+    set({ status: 'idle', msg: '' });
+    try { await auth.signInWithEmailAndPassword(String(email || '').trim(), password || ''); return true; }
+    catch (e) { set({ status: 'error', msg: authError(e) }); return false; }
+  }
+  async function signUp(email, password) {
+    if (!auth) { set({ status: 'error', msg: 'Firebase n’est pas chargé (connexion Internet ?).' }); return false; }
+    set({ status: 'idle', msg: '' });
+    try { await auth.createUserWithEmailAndPassword(String(email || '').trim(), password || ''); return true; }
+    catch (e) { set({ status: 'error', msg: authError(e) }); return false; }
+  }
+  async function resetPassword(email) {
+    if (!auth) return false;
+    if (!String(email || '').trim()) { set({ status: 'error', msg: 'Écris d’abord ton adresse e-mail.' }); return false; }
+    try { await auth.sendPasswordResetEmail(String(email).trim()); set({ status: 'ok', msg: 'E-mail envoyé : ouvre le lien reçu pour choisir un nouveau mot de passe (regarde aussi les indésirables).' }); return true; }
+    catch (e) { set({ status: 'error', msg: authError(e) }); return false; }
   }
   const signOut = () => (auth ? auth.signOut() : Promise.resolve());
 
@@ -5154,7 +5172,7 @@ const Cloud = (() => {
     }
   }
 
-  return { state, init, signIn, signOut, sync, schedulePush };
+  return { state, init, signIn, signUp, resetPassword, signOut, sync, schedulePush };
 })();
 
 function useCloud() {
@@ -5169,17 +5187,33 @@ function useCloud() {
 
 function CloudCard() {
   const c = useCloud();
+  const [email, setEmail] = useState(() => lsGet('thalie.cloud.email') || '');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
   const when = c.last ? new Date(c.last).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+  const go = async (fn) => {
+    setBusy(true);
+    lsSet('thalie.cloud.email', email.trim());
+    const okk = await fn(email, pw);
+    setBusy(false);
+    if (okk) setPw('');
+  };
   return (
     <div className="wd-card">
       <h3 className="wd-h"><Database className="w-4 h-4" />Synchronisation en ligne</h3>
       {!c.available ? (
         <p className="text-xs" style={{ color: 'var(--t5)' }}>Firebase n’est pas chargé : vérifie ta connexion Internet, puis recharge la page.</p>
       ) : !c.user ? (
-        <>
+        <form onSubmit={(e) => { e.preventDefault(); go(Cloud.signIn); }} className="flex flex-col gap-2">
           <p className="text-xs" style={{ color: 'var(--t5)' }}>Connecte-toi pour retrouver ton studio (textes, listes et photos réduites) sur tous tes appareils. Les vidéos et les PDF restent dans ta sauvegarde .zip. Connecte d’abord l’appareil qui contient tes vraies données.</p>
-          <button onClick={Cloud.signIn} className="wd-btn wd-coralbtn"><User className="w-4 h-4" />Se connecter avec Google</button>
-        </>
+          <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse e-mail" aria-label="Adresse e-mail" className="tp-field" />
+          <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Mot de passe (6 caractères minimum)" aria-label="Mot de passe" className="tp-field" />
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={busy} className="wd-btn wd-coralbtn disabled:opacity-60"><User className="w-4 h-4" />Se connecter</button>
+            <button type="button" disabled={busy} onClick={() => go(Cloud.signUp)} className="wd-btn disabled:opacity-60">Créer mon compte</button>
+            <button type="button" disabled={busy} onClick={() => Cloud.resetPassword(email)} className="wd-btn" style={{ border: 0, background: 'transparent', textDecoration: 'underline' }}>Mot de passe oublié</button>
+          </div>
+        </form>
       ) : (
         <>
           <div className="sv-stat"><b>Compte</b><span>{c.user.email || c.user.name}</span></div>

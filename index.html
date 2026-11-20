@@ -22,6 +22,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
@@ -3504,8 +3507,8 @@ async function applyBackup(parsed, onProgress) {
     BACKUP_KEYS.forEach(k => { before[k] = localStorage.getItem('thalie.' + k); });
     try {
       BACKUP_KEYS.forEach(k => {
-        if (manifest.data[k] !== undefined) localStorage.setItem('thalie.' + k, JSON.stringify(manifest.data[k]));
-        else if (!legacy) localStorage.removeItem('thalie.' + k);
+        if (manifest.data[k] !== undefined) { localStorage.setItem('thalie.' + k, JSON.stringify(manifest.data[k])); localStorage.setItem('thalie.mt.' + k, String(Date.now())); }
+        else if (!legacy) { localStorage.removeItem('thalie.' + k); localStorage.setItem('thalie.mt.' + k, String(Date.now())); }
       });
     } catch (e) {
       BACKUP_KEYS.forEach(k => {
@@ -3554,6 +3557,7 @@ async function verifyBackup(parsed, onProgress) {
 }
 
 function CloudView({ notify, onBackupJson, onBackedUp, lastBackup, lastJson, backup }) {
+  const cloud = useCloud();
   const [busy, setBusy] = useState('');
   const [prog, setProg] = useState(null);
   const [pending, setPending] = useState(null);
@@ -3720,7 +3724,7 @@ function CloudView({ notify, onBackupJson, onBackedUp, lastBackup, lastJson, bac
               <span><i style={{ background: 'var(--p-butter)' }} />PDF {fmtSize(kinds.pdf) || '0 Ko'}</span>
             </div>
             <div className="sv-stat"><b>Fichiers dans ce navigateur</b><span>{stored ? `${stored.count} · ${fmtSize(stored.bytes) || '0 Ko'}` : '…'}</span></div>
-            <div className="sv-stat"><b>Cloud (Firebase)</b><span>Bientôt</span></div>
+            <div className="sv-stat"><b>Synchronisation en ligne</b><span>{cloud.user ? 'Connectée' : 'Non connectée'}</span></div>
             <details className="sv-more">
               <summary>Plus de détails</summary>
 <div className="space-y-2">
@@ -3756,7 +3760,7 @@ function CloudView({ notify, onBackupJson, onBackedUp, lastBackup, lastJson, bac
           )}
           <div className="sv-stat">
             <b>Cloud (Firebase)</b>
-            <span className="">○ Non connecté (étape 2)</span>
+            <span className="">{cloud.user ? '● Connecté' : '○ Non connecté'}</span>
           </div>
         </div>
 
@@ -3791,6 +3795,7 @@ function CloudView({ notify, onBackupJson, onBackedUp, lastBackup, lastJson, bac
         </div>
 
         <div className="sv-col">
+          <CloudCard />
       <div className="wd-card">
         <h3 className="wd-h">Restaurer une sauvegarde<InfoTip text="Choisis un fichier .zip (sauvegarde complète) ou .json (données seules). Rien n’est modifié avant ta confirmation." /></h3>
         <input ref={restoreRef} type="file" accept=".zip,.json,application/zip,application/json" onChange={pickRestore} className="hidden" aria-label="Choisir une sauvegarde à restaurer" />
@@ -4957,6 +4962,240 @@ function AgendaView({ postsList, setPostsList, mediaList = [], notify, onRitualD
 }
 
 // --- SAUVEGARDE LOCALE (navigateur) ---
+// ======================================================================
+// SYNCHRONISATION FIREBASE (textes, listes, réglages + photos réduites)
+// Connexion Google ; tout est dans Firestore (gratuit, sans Storage).
+// ======================================================================
+const FB_CONFIG = {
+  apiKey: "AIzaSyBjNw56JQOK-Bj3jRG6VYfVi_NSJ--bgTc",
+  authDomain: "thalie-d4fbf.firebaseapp.com",
+  projectId: "thalie-d4fbf",
+  storageBucket: "thalie-d4fbf.firebasestorage.app",
+  messagingSenderId: "71278820077",
+  appId: "1:71278820077:web:d6bd73aa303f2daf50eae4"
+};
+const SYNC_KEYS = ['media', 'posts', 'contacts', 'history', 'templates', 'opencalls', 'documents', 'profile', 'settings', 'wins', 'widgets.d', 'widgets.m'];
+const lsGet = (k) => { try { return window.localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { window.localStorage.setItem(k, v); } catch (e) { /* stockage plein */ } };
+
+const Cloud = (() => {
+  const state = { available: false, user: null, status: 'off', msg: '', busy: false, last: Number(lsGet('thalie.cloud.last')) || 0 };
+  let db = null, auth = null, lastSync = 0;
+  const timers = {};
+  const emit = () => { try { window.dispatchEvent(new Event('thalie-cloud')); } catch (e) { /* rien */ } };
+  const set = (p) => { Object.assign(state, p); emit(); };
+  const mt = (k) => Number(lsGet('thalie.mt.' + k)) || 0;
+  const col = () => db.collection('users').doc(state.user.uid).collection('store');
+  const metaDoc = () => db.collection('users').doc(state.user.uid).collection('meta').doc('files');
+  const errText = (e) => (e && (e.code || e.message)) || 'erreur inconnue';
+
+  function init() {
+    if (state.available || !window.firebase) return;
+    try {
+      window.firebase.initializeApp(FB_CONFIG);
+      auth = window.firebase.auth();
+      db = window.firebase.firestore();
+      state.available = true;
+      auth.onAuthStateChanged((u) => {
+        set({ user: u ? { uid: u.uid, name: u.displayName || u.email || 'Compte Google', email: u.email || '' } : null, status: u ? 'idle' : 'off', msg: '' });
+        if (u) sync();
+      });
+      window.addEventListener('focus', () => { if (state.user && Date.now() - lastSync > 60000) sync(); });
+      emit();
+    } catch (e) {
+      set({ status: 'error', msg: 'Firebase indisponible : ' + errText(e) });
+    }
+  }
+
+  async function signIn() {
+    if (!auth) { set({ status: 'error', msg: 'Firebase n’est pas chargé (connexion Internet ?).' }); return; }
+    try {
+      await auth.signInWithPopup(new window.firebase.auth.GoogleAuthProvider());
+    } catch (e) {
+      const c = e && e.code;
+      if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
+      set({ status: 'error', msg: c === 'auth/unauthorized-domain'
+        ? 'Ce site n’est pas autorisé dans Firebase : Authentication > Paramètres > Domaines autorisés.'
+        : 'Connexion impossible : ' + errText(e) });
+    }
+  }
+  const signOut = () => (auth ? auth.signOut() : Promise.resolve());
+
+  async function pushKey(key, json, ts) {
+    if (!state.user || !db) return;
+    if (json.length > 900000) { set({ status: 'error', msg: '« ' + key + ' » dépasse 900 Ko : trop volumineux pour la synchronisation.' }); return; }
+    try {
+      await col().doc(key).set({ value: json, updatedAt: ts });
+      lsSet('thalie.cloud.last', String(Date.now()));
+      set({ status: 'ok', last: Date.now(), msg: '' });
+    } catch (e) {
+      set({ status: 'error', msg: 'Envoi impossible : ' + errText(e) });
+    }
+  }
+  function schedulePush(key, json) {
+    if (!state.user || !db) return;
+    clearTimeout(timers[key]);
+    timers[key] = setTimeout(() => pushKey(key, json, mt(key) || Date.now()), 1500);
+  }
+
+  // Fichiers référencés par les listes (médias, documents, PDF d'appels) + images de profil.
+  const neededFileKeys = () => {
+    const keys = new Set(['img:avatar', 'img:logo', 'img:cover', 'img:hero', 'img:bg']);
+    const read = (k) => { try { return JSON.parse(lsGet('thalie.' + k) || '[]'); } catch (e) { return []; } };
+    read('media').forEach(m => { if (m && m.fileId) keys.add(m.fileId); });
+    read('documents').forEach(d => { if (d && d.fileId) keys.add(d.fileId); });
+    read('opencalls').forEach(o => { if (o && o.callPdf && o.callPdf.fileId) keys.add(o.callPdf.fileId); });
+    return keys;
+  };
+  // Photos : réduites puis gardées dans Firestore (gratuit, sans Storage). Vidéos et PDF restent sur l'appareil / dans le .zip.
+  const photoDoc = (k) => db.collection('users').doc(state.user.uid).collection('photos').doc(encodeURIComponent(k));
+  const toDataUrl = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  const shrink = (blob, maxSide, q, png) => new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('image illisible')); };
+    img.src = url;
+  });
+  const smallPhoto = async (blob, png) => {
+    for (const [side, q] of [[1200, 0.72], [900, 0.6], [640, 0.5]]) {
+      const d = await shrink(blob, png ? Math.min(side, 512) : side, q, png);
+      if (d.length <= 850000) return d;
+    }
+    return null;
+  };
+  const dataUrlToBlob = async (d) => (await fetch(d)).blob();
+
+  async function syncFiles() {
+    const mdoc = await metaDoc().get();
+    const manifest = (mdoc.exists && mdoc.data().list) || {};
+    const local = await listFiles();
+    const have = new Set(local.map(f => String(f.key)));
+    let notSent = 0;
+    const isImg = (f) => typeof f.value === 'string' || (f.value && String(f.value.type || '').startsWith('image/'));
+    const up = local.filter(f => !manifest[f.key]);
+    let i = 0;
+    for (const f of up) {
+      if (!isImg(f)) { notSent++; continue; }
+      set({ msg: 'Envoi des photos ' + (++i) + '/' + up.length + '…' });
+      const isStr = typeof f.value === 'string';
+      const blob = isStr ? await dataUrlToBlob(f.value) : f.value;
+      let data = null;
+      try { data = await smallPhoto(blob, f.key === 'img:logo'); } catch (e) { data = null; }
+      if (!data) { manifest[f.key] = { skipped: true, ts: Date.now() }; notSent++; }
+      else {
+        await photoDoc(f.key).set({ data, ts: Date.now() });
+        manifest[f.key] = { kind: isStr ? 'string' : 'blob', ts: Date.now() };
+      }
+      await metaDoc().set({ list: manifest });
+    }
+    const down = [...neededFileKeys()].filter(k => manifest[k] && !manifest[k].skipped && !have.has(k));
+    let j = 0;
+    for (const k of down) {
+      set({ msg: 'Réception des photos ' + (++j) + '/' + down.length + '…' });
+      const d = await photoDoc(k).get();
+      if (!d.exists) continue;
+      const data = d.data().data;
+      await saveFile(k, manifest[k].kind === 'string' ? data : await dataUrlToBlob(data));
+    }
+    state.notSent = notSent;
+    return down.length > 0;
+  }
+
+  async function sync() {
+    if (!state.user || !db || state.busy) return;
+    set({ busy: true, status: 'sync', msg: 'Synchronisation…' });
+    try {
+      const snap = await col().get();
+      const remote = {};
+      snap.forEach(d => { remote[d.id] = d.data(); });
+      let changed = false;
+      for (const key of SYNC_KEYS) {
+        const r = remote[key];
+        const lraw = lsGet('thalie.' + key);
+        const lm = mt(key);
+        if (r && r.updatedAt > lm) {
+          lsSet('thalie.' + key, r.value);
+          lsSet('thalie.mt.' + key, String(r.updatedAt));
+          changed = true;
+        } else if (lraw !== null && (!r || lm > r.updatedAt)) {
+          const ts = lm || Date.now();
+          if (!lm) lsSet('thalie.mt.' + key, String(ts));
+          await pushKey(key, lraw, ts);
+        }
+      }
+      let fchanged = false;
+      try { fchanged = await syncFiles(); } catch (e) {
+        const net = String(errText(e));
+        lastSync = Date.now();
+        set({ busy: false, status: 'error', msg: 'Textes synchronisés, mais pas les photos : ' + net });
+        if (changed) { try { sessionStorage.setItem('thalie.synced', '1'); } catch (e2) { /* rien */ } window.location.reload(); }
+        return;
+      }
+      lastSync = Date.now();
+      lsSet('thalie.cloud.last', String(lastSync));
+      if (changed || fchanged) {
+        try { sessionStorage.setItem('thalie.synced', '1'); } catch (e) { /* rien */ }
+        window.location.reload();
+        return;
+      }
+      set({ busy: false, status: 'ok', last: lastSync, msg: state.notSent ? state.notSent + ' fichier' + (state.notSent > 1 ? 's' : '') + ' (vidéos, PDF ou photos trop lourdes) reste' + (state.notSent > 1 ? 'nt' : '') + ' sur cet appareil : garde-les dans ta sauvegarde .zip.' : '' });
+    } catch (e) {
+      lastSync = Date.now();
+      set({ busy: false, status: 'error', msg: 'Synchronisation impossible : ' + errText(e) });
+    }
+  }
+
+  return { state, init, signIn, signOut, sync, schedulePush };
+})();
+
+function useCloud() {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const h = () => force(x => x + 1);
+    window.addEventListener('thalie-cloud', h);
+    return () => window.removeEventListener('thalie-cloud', h);
+  }, []);
+  return Cloud.state;
+}
+
+function CloudCard() {
+  const c = useCloud();
+  const when = c.last ? new Date(c.last).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <div className="wd-card">
+      <h3 className="wd-h"><Database className="w-4 h-4" />Synchronisation en ligne</h3>
+      {!c.available ? (
+        <p className="text-xs" style={{ color: 'var(--t5)' }}>Firebase n’est pas chargé : vérifie ta connexion Internet, puis recharge la page.</p>
+      ) : !c.user ? (
+        <>
+          <p className="text-xs" style={{ color: 'var(--t5)' }}>Connecte-toi pour retrouver ton studio (textes, listes et photos réduites) sur tous tes appareils. Les vidéos et les PDF restent dans ta sauvegarde .zip. Connecte d’abord l’appareil qui contient tes vraies données.</p>
+          <button onClick={Cloud.signIn} className="wd-btn wd-coralbtn"><User className="w-4 h-4" />Se connecter avec Google</button>
+        </>
+      ) : (
+        <>
+          <div className="sv-stat"><b>Compte</b><span>{c.user.email || c.user.name}</span></div>
+          <div className="sv-stat"><b>Dernière synchronisation</b><span>{c.busy ? 'en cours…' : when || 'jamais'}</span></div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={Cloud.sync} disabled={c.busy} className="wd-btn wd-dark disabled:opacity-60"><RotateCcw className="w-4 h-4" />Synchroniser maintenant</button>
+            <button onClick={Cloud.signOut} className="wd-btn">Se déconnecter</button>
+          </div>
+        </>
+      )}
+      {c.msg && <p className="text-xs" style={{ color: c.status === 'error' ? '#b4233c' : 'var(--t5)' }} role="status">{c.msg}</p>}
+      <p className="text-xs" style={{ color: 'var(--t5)' }}>La sauvegarde complète (.zip) reste ta vraie sécurité : garde-la aussi ailleurs.</p>
+    </div>
+  );
+}
+
 const failedKeys = new Set();
 const flagStorage = (key, failed) => {
   const had = failedKeys.has(key);
@@ -4978,10 +5217,22 @@ function usePersistentState(key, initial, sanitize) {
       return initial;
     }
   });
+  const firstRun = React.useRef(true);
+  const lastJson = React.useRef('');
   useEffect(() => {
     try {
-      window.localStorage.setItem(key, JSON.stringify(sanitize ? sanitize(value) : value));
+      const json = JSON.stringify(sanitize ? sanitize(value) : value);
+      window.localStorage.setItem(key, json);
       flagStorage(key, false);
+      if (firstRun.current) { firstRun.current = false; lastJson.current = json; return; }
+      if (json === lastJson.current) return;
+      lastJson.current = json;
+      // Vraie modification : on date le changement et on l'envoie à ton compte.
+      const sk = key.replace(/^thalie\./, '');
+      if (SYNC_KEYS.includes(sk)) {
+        window.localStorage.setItem('thalie.mt.' + sk, String(Date.now()));
+        Cloud.schedulePush(sk, json);
+      }
     } catch (e) {
       flagStorage(key, true);
     }
@@ -6071,6 +6322,16 @@ function App() {
     const readMs = Math.min(12000, 1500 + String(msg).length * 55);
     toastRef.current = setTimeout(() => setSweetToast(null), Math.max(settings.toastSeconds * 1000, readMs));
   };
+
+  useEffect(() => {
+    Cloud.init();
+    try {
+      if (sessionStorage.getItem('thalie.synced')) {
+        sessionStorage.removeItem('thalie.synced');
+        notify('Données synchronisées depuis ton compte.');
+      }
+    } catch (e) { /* facultatif */ }
+  }, []);
 
   useEffect(() => {
     try {

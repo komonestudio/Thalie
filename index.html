@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>THALIE Studio</title>
-<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#fbf6f1">
@@ -5044,7 +5045,7 @@ const Cloud = (() => {
     if (c === 'auth/missing-password') return 'Écris ton mot de passe.';
     if (c === 'auth/weak-password') return 'Mot de passe trop court : 6 caractères minimum.';
     if (c === 'auth/email-already-in-use') return 'Un compte existe déjà avec cette adresse : utilise « Se connecter ».';
-    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') return 'Adresse ou mot de passe incorrect. Pas encore de compte ? Utilise « Créer mon compte ».';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') return 'Adresse ou mot de passe incorrect.';
     if (c === 'auth/too-many-requests') return 'Trop d’essais : patiente quelques minutes avant de réessayer.';
     if (c === 'auth/network-request-failed') return 'Pas de connexion Internet.';
     if (c === 'auth/operation-not-allowed' || c === 'auth/configuration-not-found') return 'La connexion par e-mail n’est pas activée dans Firebase (Authentication > Méthode de connexion > E-mail/Mot de passe).';
@@ -6575,7 +6576,7 @@ function App() {
       <div className="tl-topwrap">
         <header className="tl-top">
           <div className="tl-brand2" onClick={() => go('dashboard')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') go('dashboard'); }}>
-            <div className="tl-logo2" style={images.logo ? { backgroundImage: `url(${images.logo})` } : undefined}>{!images.logo && (profile.logoEmoji || '🌿')}</div>
+            <div className="tl-logo2" style={images.logo ? { backgroundImage: `url(${images.logo})` } : (profile.logoEmoji && profile.logoEmoji !== '🌿') ? undefined : { backgroundImage: 'url(logo-thalie.png)', backgroundColor: '#fff' }}>{!images.logo && profile.logoEmoji && profile.logoEmoji !== '🌿' && profile.logoEmoji}</div>
             <h1 className="font-serif tl-name2">{profile.studioName || DEFAULT_STUDIO_NAME}</h1>
           </div>
 
@@ -6774,7 +6775,7 @@ function LoginScreen() {
     <div style={page}>
       <form onSubmit={submit} style={card}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 52, height: 52, margin: '0 auto 10px', borderRadius: '50%', background: 'linear-gradient(135deg,#EE6A4E,#f59a6c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🌿</div>
+          <img src="logo-thalie.png" alt="THALIE" style={{ width: 96, height: 96, margin: '0 auto 10px', display: 'block', borderRadius: '50%', background: '#fff' }} />
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>THALIE Studio</h1>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#68625b' }}>Connecte-toi pour ouvrir ton studio.</p>
         </div>

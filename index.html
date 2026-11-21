@@ -5241,7 +5241,6 @@ function CloudCard() {
           <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Mot de passe (6 caractères minimum)" aria-label="Mot de passe" className="tp-field" />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy} className="wd-btn wd-coralbtn disabled:opacity-60"><User className="w-4 h-4" />Se connecter</button>
-            <button type="button" disabled={busy} onClick={() => go(Cloud.signUp)} className="wd-btn disabled:opacity-60">Créer mon compte</button>
             <button type="button" disabled={busy} onClick={() => Cloud.resetPassword(email)} className="wd-btn" style={{ border: 0, background: 'transparent', textDecoration: 'underline' }}>Mot de passe oublié</button>
           </div>
         </form>
@@ -6782,7 +6781,6 @@ function LoginScreen() {
         <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse e-mail" aria-label="Adresse e-mail" style={input} />
         <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Mot de passe" aria-label="Mot de passe" style={input} />
         <button type="submit" disabled={busy || !c.available} style={btn}>{busy ? 'Connexion…' : 'Se connecter'}</button>
-        <button type="button" disabled={busy || !c.available} onClick={async () => { setBusy(true); lsSet('thalie.cloud.email', email.trim()); const ok = await Cloud.signUp(email, pw); setBusy(false); if (ok) setPw(''); }} style={{ ...btn, background: 'rgba(29,27,25,.06)', color: '#1d1b19', border: '1px solid rgba(29,27,25,.15)' }}>Créer mon compte</button>
         <button type="button" onClick={() => Cloud.resetPassword(email)} style={{ background: 'none', border: 0, textDecoration: 'underline', fontSize: 12, color: '#68625b', cursor: 'pointer', fontFamily: 'inherit' }}>Mot de passe oublié</button>
         {c.msg && <p role="status" style={{ margin: 0, fontSize: 12, textAlign: 'center', color: c.status === 'error' ? '#b4233c' : '#68625b' }}>{c.msg}</p>}
         {!c.available && <button type="button" onClick={() => window.location.reload()} style={{ ...btn, background: '#EE6A4E' }}>Recharger la page</button>}

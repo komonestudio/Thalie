@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#fbf6f1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Thalie">
+<meta name="apple-mobile-web-app-title" content="THALIE">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Lora:wght@500;700&family=Playfair+Display:wght@500;700&family=Cormorant+Garamond:wght@500;700&family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -4021,7 +4021,7 @@ function ThalieBridge({ title, prompt, hint, attachment, onApply, onClose, notif
 }
 
 // --- FICHIERS GARDÉS DANS LE NAVIGATEUR (IndexedDB) ---
-const FILES_DB = 'thalie-files';
+let FILES_DB = 'thalie-files';
 const FILES_STORE = 'files';
 const openFilesDb = () => new Promise((resolve, reject) => {
   const req = indexedDB.open(FILES_DB, 1);
@@ -4985,7 +4985,7 @@ const lsGet = (k) => { try { return window.localStorage.getItem(k); } catch (e) 
 const lsSet = (k, v) => { try { window.localStorage.setItem(k, v); } catch (e) { /* stockage plein */ } };
 
 const Cloud = (() => {
-  const state = { available: false, user: null, status: 'off', msg: '', busy: false, last: Number(lsGet('thalie.cloud.last')) || 0 };
+  const state = { available: false, user: null, status: 'off', msg: '', busy: false, ready: false, last: Number(lsGet('thalie.cloud.last')) || 0 };
   let db = null, auth = null, lastSync = 0;
   const timers = {};
   const emit = () => { try { window.dispatchEvent(new Event('thalie-cloud')); } catch (e) { /* rien */ } };
@@ -4995,21 +4995,46 @@ const Cloud = (() => {
   const metaDoc = () => db.collection('users').doc(state.user.uid).collection('meta').doc('files');
   const errText = (e) => (e && (e.code || e.message)) || 'erreur inconnue';
 
+  // Chaque compte a son propre espace dans ce navigateur. Le premier compte connecté garde
+  // les données déjà présentes ; les suivants reçoivent un espace séparé (textes et fichiers).
+  function applyScope(uid) {
+    let owner = null;
+    try { owner = window.localStorage.getItem('thalie.legacyOwner'); } catch (e) { /* rien */ }
+    if (!owner) { try { window.localStorage.setItem('thalie.legacyOwner', uid); } catch (e) { /* rien */ } return; }
+    if (owner === uid) return;
+    const real = window.localStorage;
+    const pre = 'tu.' + uid + '.';
+    const m = (k) => (String(k).startsWith('thalie.') ? pre + k : k);
+    const mine = () => Object.keys(real).filter(k => k.startsWith(pre));
+    const scoped = {
+      getItem: (k) => real.getItem(m(k)),
+      setItem: (k, v) => real.setItem(m(k), v),
+      removeItem: (k) => real.removeItem(m(k)),
+      key: (i) => { const k = mine()[i]; return k ? k.slice(pre.length) : null; },
+      get length() { return mine().length; },
+      clear: () => mine().forEach(k => real.removeItem(k))
+    };
+    Object.defineProperty(window, 'localStorage', { configurable: true, get: () => scoped });
+    FILES_DB = 'thalie-files-' + uid;
+  }
+
   function init() {
-    if (state.available || !window.firebase) return;
+    if (state.available) return;
+    if (!window.firebase) { set({ ready: true, status: 'error', msg: 'Firebase n’est pas chargé : vérifie ta connexion Internet, puis recharge la page.' }); return; }
     try {
       window.firebase.initializeApp(FB_CONFIG);
       auth = window.firebase.auth();
       db = window.firebase.firestore();
       state.available = true;
       auth.onAuthStateChanged((u) => {
-        set({ user: u ? { uid: u.uid, name: u.displayName || u.email || 'Compte Google', email: u.email || '' } : null, status: u ? 'idle' : 'off', msg: '' });
+        if (u) applyScope(u.uid);
+        set({ ready: true, user: u ? { uid: u.uid, name: u.displayName || u.email || 'Compte Google', email: u.email || '' } : null, status: u ? 'idle' : 'off', msg: '' });
         if (u) sync();
       });
       window.addEventListener('focus', () => { if (state.user && Date.now() - lastSync > 60000) sync(); });
       emit();
     } catch (e) {
-      set({ status: 'error', msg: 'Firebase indisponible : ' + errText(e) });
+      set({ ready: true, status: 'error', msg: 'Firebase indisponible : ' + errText(e) });
     }
   }
 
@@ -5043,7 +5068,7 @@ const Cloud = (() => {
     try { await auth.sendPasswordResetEmail(String(email).trim()); set({ status: 'ok', msg: 'E-mail envoyé : ouvre le lien reçu pour choisir un nouveau mot de passe (regarde aussi les indésirables).' }); return true; }
     catch (e) { set({ status: 'error', msg: authError(e) }); return false; }
   }
-  const signOut = () => (auth ? auth.signOut() : Promise.resolve());
+  const signOut = () => (auth ? auth.signOut() : Promise.resolve()).then(() => { window.location.reload(); });
 
   async function pushKey(key, json, ts) {
     if (!state.user || !db) return;
@@ -5216,7 +5241,6 @@ function CloudCard() {
           <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Mot de passe (6 caractères minimum)" aria-label="Mot de passe" className="tp-field" />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy} className="wd-btn wd-coralbtn disabled:opacity-60"><User className="w-4 h-4" />Se connecter</button>
-            <button type="button" disabled={busy} onClick={() => go(Cloud.signUp)} className="wd-btn disabled:opacity-60">Créer mon compte</button>
             <button type="button" disabled={busy} onClick={() => Cloud.resetPassword(email)} className="wd-btn" style={{ border: 0, background: 'transparent', textDecoration: 'underline' }}>Mot de passe oublié</button>
           </div>
         </form>
@@ -6729,7 +6753,52 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
+function LoginScreen() {
+  const c = useCloud();
+  const [email, setEmail] = useState(() => lsGet('thalie.cloud.email') || '');
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    lsSet('thalie.cloud.email', email.trim());
+    const ok = await Cloud.signIn(email, pw);
+    setBusy(false);
+    if (ok) setPw('');
+  };
+  const page = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'DM Sans', system-ui, sans-serif", color: '#1d1b19', background: 'radial-gradient(900px 500px at 8% 0%,#ffd9c9,transparent 60%),radial-gradient(800px 600px at 95% 10%,#d8cdfa,transparent 60%),radial-gradient(900px 600px at 50% 100%,#cde7f5,transparent 60%),#f4ede6' };
+  const card = { width: 'min(400px,100%)', padding: 28, borderRadius: 28, background: 'rgba(255,255,255,.72)', WebkitBackdropFilter: 'blur(18px)', backdropFilter: 'blur(18px)', border: '1px solid rgba(255,255,255,.8)', boxShadow: '0 30px 60px -30px rgba(70,40,110,.45)', display: 'flex', flexDirection: 'column', gap: 12 };
+  const input = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 14, border: '1px solid rgba(29,27,25,.15)', background: 'rgba(255,255,255,.85)', fontSize: 14, fontFamily: 'inherit' };
+  const btn = { width: '100%', padding: 13, borderRadius: 999, border: 0, background: '#2C2927', color: '#fff', fontWeight: 700, fontSize: 14, fontFamily: 'inherit', cursor: 'pointer', opacity: busy ? 0.6 : 1 };
+  return (
+    <div style={page}>
+      <form onSubmit={submit} style={card}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 52, height: 52, margin: '0 auto 10px', borderRadius: '50%', background: 'linear-gradient(135deg,#EE6A4E,#f59a6c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🌿</div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>THALIE Studio</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#68625b' }}>Connecte-toi pour ouvrir ton studio.</p>
+        </div>
+        <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse e-mail" aria-label="Adresse e-mail" style={input} />
+        <input type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Mot de passe" aria-label="Mot de passe" style={input} />
+        <button type="submit" disabled={busy || !c.available} style={btn}>{busy ? 'Connexion…' : 'Se connecter'}</button>
+        <button type="button" onClick={() => Cloud.resetPassword(email)} style={{ background: 'none', border: 0, textDecoration: 'underline', fontSize: 12, color: '#68625b', cursor: 'pointer', fontFamily: 'inherit' }}>Mot de passe oublié</button>
+        {c.msg && <p role="status" style={{ margin: 0, fontSize: 12, textAlign: 'center', color: c.status === 'error' ? '#b4233c' : '#68625b' }}>{c.msg}</p>}
+        {!c.available && <button type="button" onClick={() => window.location.reload()} style={{ ...btn, background: '#EE6A4E' }}>Recharger la page</button>}
+      </form>
+    </div>
+  );
+}
+
+// Porte d'entrée : rien de l'application n'est affiché sans compte connecté ; chaque compte a son propre espace.
+function Root() {
+  const c = useCloud();
+  useEffect(() => { Cloud.init(); }, []);
+  if (!c.ready) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', color: '#68625b' }}>Chargement…</div>;
+  if (!c.user) return <LoginScreen />;
+  return <App key={c.user.uid} />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><Root /></ErrorBoundary>);
 </script>
 <script>if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){try{navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}})}</script>
 </body>

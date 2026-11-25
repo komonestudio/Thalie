@@ -3419,7 +3419,7 @@ async function readZip(file) {
   return { get, meta: (name) => map[name] };
 }
 
-const BACKUP_KEYS = ['media', 'posts', 'contacts', 'history', 'templates', 'opencalls', 'documents', 'profile', 'settings', 'wins', 'livre.settings', 'livre.situation', 'livre.done', 'livre.baremes', 'livre.baremesHist', 'livre.relire', 'livre.motscles'];
+const BACKUP_KEYS = ['media', 'posts', 'contacts', 'history', 'templates', 'opencalls', 'documents', 'profile', 'settings', 'wins', 'livre.settings', 'livre.situation', 'livre.done', 'livre.baremes', 'livre.baremesHist', 'livre.relire', 'livre.motscles', 'livre.snooze'];
 
 const listFiles = async () => {
   const db = await openFilesDb();
@@ -4997,7 +4997,7 @@ const FB_CONFIG = {
   messagingSenderId: "71278820077",
   appId: "1:71278820077:web:d6bd73aa303f2daf50eae4"
 };
-const SYNC_KEYS = ['media', 'posts', 'contacts', 'history', 'templates', 'opencalls', 'documents', 'profile', 'settings', 'wins', 'widgets.d', 'widgets.m', 'livre.settings', 'livre.situation', 'livre.done', 'livre.baremes', 'livre.baremesHist', 'livre.relire', 'livre.motscles'];
+const SYNC_KEYS = ['media', 'posts', 'contacts', 'history', 'templates', 'opencalls', 'documents', 'profile', 'settings', 'wins', 'widgets.d', 'widgets.m', 'livre.settings', 'livre.situation', 'livre.done', 'livre.baremes', 'livre.baremesHist', 'livre.relire', 'livre.motscles', 'livre.snooze'];
 const lsGet = (k) => { try { return window.localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { window.localStorage.setItem(k, v); } catch (e) { /* stockage plein */ } };
 
@@ -6402,66 +6402,66 @@ function ldhDeclDate(bar) {
 // check : peut être cochée (« jusqu'à coché ») ; event : liée à une saisie de vente (V1 : affichée dans la page).
 // ======================================================================
 const LDH_RULES = [
-  { id: 'R01', page: '0', kind: 'alerte', prio: 'urgent', check: true, msg: 'Vérifie que ton compte micro-entrepreneur ne te réclame plus ni déclaration ni cotisation après la date du changement.', when: f => ['modifiee', 'fermee'].includes(f.a.q2) },
-  { id: 'R02', page: '0', kind: 'rappel', prio: 'important', msg: 'Année de bascule : déclare d’abord ton chiffre d’affaires micro jusqu’au changement, puis tes revenus d’artiste-auteur.', when: f => ['modifiee', 'fermee'].includes(f.a.q2) && f.changeYear !== null && f.changeYear >= f.year - 1, dates: (f, x) => [x.decl] },
-  { id: 'R03', page: '0', kind: 'alerte', prio: 'important', msg: 'Tes œuvres ne se facturent jamais en micro-entreprise : garde-la seulement pour les activités qui ne sont pas artistiques.', when: f => f.a.q2 === 'active' },
-  { id: 'R04', page: '0', kind: 'rappel', prio: 'important', msg: 'Sur la 2042 C PRO, signale tes recettes d’artiste à ne pas soumettre aux cotisations des indépendants (case à confirmer sur la notice).', when: f => f.a.q2 === 'active' || f.has('q12', 'micro'), dates: (f, x) => [x.decl] },
-  { id: 'R05', page: '0', kind: 'rappel', prio: 'info', check: true, checkLabel: 'Attestation reçue', msg: 'Ton attestation d’affiliation arrive dans la Messagerie de ton espace Urssaf. Rien après 6 semaines ? Relance l’Urssaf Limousin.', when: f => !!f.startYear },
-  { id: 'R06', page: '1', kind: 'rappel', prio: 'important', msg: 'Télécharge ta dispense de précompte de l’année suivante dans la Messagerie et remets-la à tes diffuseurs.', when: f => f.has('q10', 'diffuseurs') || f.has('q10', 'galerie'), dates: () => [ldhNext(12, 1)] },
-  { id: 'R07', page: '1', kind: 'alerte', prio: 'important', msg: 'Les ateliers ne comptent comme revenus accessoires que si tu as déjà déclaré un revenu artistique principal.', when: f => f.has('q9', 'ateliers') && !f.a.principal },
-  { id: 'R08', page: '1', kind: 'alerte', prio: 'important', msg: 'Tes revenus accessoires approchent du plafond : au-delà, l’excédent relève des travailleurs indépendants.', when: f => f.acc !== null && f.acc >= 0.8 * f.B('plafond_accessoires') },
-  { id: 'R09', page: '1', kind: 'fiche', prio: 'info', msg: 'Ton activité d’artiste n’est pas couverte contre les accidents du travail : une assurance volontaire est possible auprès de ta CPAM.', when: () => true },
-  { id: 'R10', page: '2', kind: 'rappel', prio: 'urgent', msg: 'La déclaration annuelle est ouverte : déclare à l’Urssaf artistes-auteurs, puis aux impôts, avec les mêmes montants.', when: () => true, dates: (f, x) => [x.decl].concat(x.declEnd ? [ldhAddDays(x.declEnd, -15)] : []) },
-  { id: 'R11', page: '2', kind: 'rappel', prio: 'urgent', msg: 'Déclare quand même 0 €, sinon l’Urssaf fixera tes revenus d’office (deux dernières années + 25 %).', when: f => f.recZero, dates: (f, x) => [x.decl] },
-  { id: 'R12', page: '2', kind: 'rappel', prio: 'info', msg: 'Après ta déclaration, lis ton nouveau calendrier de paiement dans ton espace Urssaf.', when: f => ['micro', 'dc'].includes(f.regime), dates: () => [ldhNext(6, 25)] },
-  { id: 'R13', page: '3', kind: 'rappel', prio: 'urgent', msg: 'Tes acomptes sont calculés sur un forfait de 600 fois le Smic. Si tes revenus sont plus bas, demande une modulation avant cette date (15 jours avant l’échéance).', when: f => !!f.startYear && (f.lastDecl === null || f.lastDecl < f.startYear + 1), dates: (f, x) => x.echeances.filter(d => d <= x.decl).map(d => ldhAddDays(d, -15)) },
-  { id: 'R14', page: '3', kind: 'rappel', prio: 'important', msg: 'Tes revenus baissent : tu peux moduler tes acomptes jusqu’au 30 septembre, au moins 15 jours avant l’échéance.', when: f => f.rec !== null && f.recPrev !== null && f.rec < 0.7 * f.recPrev, dates: (f, x) => x.echeances.filter(d => d.getMonth() !== 9).map(d => ldhAddDays(d, -30)) },
-  { id: 'R15', page: '3', kind: 'rappel', prio: 'important', msg: 'Échéance de cotisations : vérifie le montant dans ton espace Urssaf.', when: f => ['micro', 'dc', ''].includes(f.regime), dates: (f, x) => x.echeances },
-  { id: 'R16', page: '3', kind: 'alerte', prio: 'important', msg: 'Tes revenus ne valident pas 4 trimestres : la surcotisation peut t’aider (aide possible de l’Urssaf).', when: f => f.lowAssiette && !f.has('q12', 'emploi'), dates: (f, x) => [x.decl] },
-  { id: 'R17', page: '3', kind: 'fiche', prio: 'info', msg: 'Ton emploi salarié valide sans doute déjà tes trimestres et tes indemnités journalières : la surcotisation est probablement inutile.', when: f => f.lowAssiette && f.has('q12', 'emploi') },
-  { id: 'R18', page: '3', kind: 'rappel', prio: 'info', check: true, msg: 'Renseigne ton RIB dans ton espace Urssaf pour recevoir les remboursements automatiques.', when: () => true },
-  { id: 'R19', page: '3', kind: 'fiche', prio: 'info', msg: 'Mets de côté environ 16 % de chaque vente pour tes cotisations.', when: f => ['micro', 'dc'].includes(f.regime) },
-  { id: 'R20', page: '4', kind: 'fiche', prio: 'info', msg: 'Chaque facture porte la mention « TVA non applicable, art. 293 B du CGI ».', when: f => f.a.q7 === 'franchise' },
-  { id: 'R21', page: '4', kind: 'alerte', prio: 'important', msg: 'Tu approches du seuil de franchise de TVA pour tes œuvres et tes droits.', when: f => f.recOeuvres !== null && f.recOeuvres >= 0.8 * f.B('franchise_tva_oeuvres') && f.recOeuvres <= f.B('tolerance_tva_oeuvres') },
-  { id: 'R22', page: '4', kind: 'alerte', prio: 'urgent', msg: 'Tu as dépassé le seuil de tolérance : la TVA s’applique dès ce mois-ci. Demande un numéro de TVA et corrige les factures du mois.', when: f => f.recOeuvres !== null && f.recOeuvres > f.B('tolerance_tva_oeuvres') },
-  { id: 'R23', page: '4', kind: 'alerte', prio: 'important', msg: 'Tes activités annexes approchent de leur propre seuil de franchise de TVA.', when: f => (f.has('q9', 'ateliers') || f.has('q9', 'produits')) && f.recAnnexes !== null && f.recAnnexes >= 0.8 * f.B('franchise_tva_annexes') },
-  { id: 'R24', page: '4', kind: 'fiche', prio: 'info', msg: 'Les reproductions et produits dérivés ne sont pas des œuvres originales : hors franchise, TVA à 20 %, pas 5,5 %.', when: f => f.has('q9', 'reproductions') || f.has('q9', 'produits') },
-  { id: 'R25', page: '4', kind: 'rappel', prio: 'info', msg: 'Fais le bilan de tes seuils de TVA de l’année.', when: f => ['t4', 't5', 't6'].includes(f.t), dates: () => [ldhNext(12, 1)] },
-  { id: 'R26', page: '5', kind: 'alerte', prio: 'important', msg: 'La déclaration contrôlée pourrait te faire payer moins : compare avant de déposer la 2035, début mai.', when: f => f.regime === 'micro' && f.frais !== null && f.rec && f.frais > 0.34 * f.rec, dates: () => [ldhNext(3, 1), ldhNext(4, 1)] },
-  { id: 'R27', page: '5', kind: 'fiche', prio: 'info', msg: 'L’abattement de 50 % des jeunes plasticiennes n’existe qu’en déclaration contrôlée : vérifie s’il vaut le coup.', when: f => f.regime === 'micro' && f.startYear !== null && f.year - f.startYear <= 4 && !f.recZero },
-  { id: 'R28', page: '5', kind: 'alerte', prio: 'urgent', msg: 'Tu ne peux plus rester en micro-BNC : la déclaration contrôlée devient obligatoire.', when: f => f.rec !== null && f.recPrev !== null && f.rec > f.B('plafond_micro_bnc') && f.recPrev > f.B('plafond_micro_bnc') },
-  { id: 'R29', page: '5', kind: 'rappel', prio: 'urgent', msg: 'Dépose ta 2035 (début mai) et reporte le résultat sur la 2042 C PRO.', when: f => f.regime === 'dc', dates: () => [ldhNext(4, 15)] },
-  { id: 'R30', page: '5', kind: 'rappel', prio: 'info', msg: 'Pour revenir au micro-BNC, renonce à la déclaration contrôlée avant le 1er février.', when: f => f.regime === 'dc', dates: () => [ldhNext(1, 15)] },
-  { id: 'R31', page: '6', kind: 'fiche', prio: 'info', msg: 'Ta facture doit porter les mentions obligatoires, dont la mention « EI ».', when: () => true },
-  { id: 'R32', page: '6', kind: 'rappel', prio: 'important', msg: 'Tes factures à ces clients devront être électroniques.', when: f => f.has('q10', 'galerie') || f.has('q10', 'entreprises'), dates: (f, x) => (x.facturation ? [ldhAddDays(x.facturation, -60)] : []) },
-  { id: 'R33', page: '6', kind: 'alerte', prio: 'important', check: true, checkLabel: 'Plateforme choisie', msg: 'Tu dois pouvoir recevoir des factures électroniques : choisis une plateforme de réception.', when: () => true },
-  { id: 'R34', page: '6', kind: 'fiche', prio: 'info', event: true, msg: 'Remets un certificat d’authenticité avec chaque œuvre vendue.', when: f => f.has('q10', 'particuliers') },
-  { id: 'R35', page: '6', kind: 'fiche', prio: 'info', msg: 'Garde tes factures et justificatifs 10 ans.', when: () => true },
-  { id: 'R36', page: '7', kind: 'fiche', prio: 'important', event: true, msg: 'Vente dans l’UE : la facture est obligatoire et la TVA dépend du client (professionnel ou particulier).', when: f => f.has('q10', 'ue') },
-  { id: 'R37', page: '7', kind: 'fiche', prio: 'important', event: true, msg: 'Vente hors UE : garde la preuve de l’exportation de l’œuvre.', when: f => f.has('q10', 'horsue') },
-  { id: 'R38', page: '7', kind: 'alerte', prio: 'urgent', msg: 'Ta résidence fiscale n’est pas en France : fais-toi conseiller avant d’utiliser le livre.', when: f => f.a.q4 && f.a.q4 !== 'france' },
-  { id: 'R39', page: '7', kind: 'rappel', prio: 'info', msg: 'Tes revenus de l’étranger se déclarent en France, avec les autres.', when: f => f.has('q10', 'ue') || f.has('q10', 'horsue'), dates: (f, x) => [x.decl] },
-  { id: 'R40', page: '8', kind: 'rappel', prio: 'important', msg: 'Tu es affiliée à la RAAP : déclare ton assiette à l’IRCEC, qui l’appelle à part.', when: f => (f.assiettePrev !== null ? f.assiettePrev : f.assiette) !== null && (f.assiettePrev !== null ? f.assiettePrev : f.assiette) >= f.B('seuil_raap'), dates: () => [ldhNext(4, 1)] },
-  { id: 'R41', page: '8', kind: 'rappel', prio: 'urgent', msg: 'Tu peux demander le taux réduit de 4 % pour la RAAP, avant le 30 novembre.', when: f => { const v = f.assiettePrev !== null ? f.assiettePrev : f.assiette; return v !== null && v >= f.B('seuil_raap') && v <= f.B('plafond_raap_reduit'); }, dates: () => [ldhAddDays(ldhNext(11, 30), -30)] },
-  { id: 'R42', page: '8', kind: 'fiche', prio: 'info', msg: 'Fais le point sur tes trimestres : demande ton relevé de carrière.', when: f => f.a.q3 === '62' },
-  { id: 'R43', page: '8', kind: 'fiche', prio: 'info', msg: 'Tu as droit au taux plein automatiquement ; la RAAP n’est plus due si tu touches ta pension IRCEC.', when: f => f.a.q3 === '67' },
-  { id: 'R44', page: '9', kind: 'rappel', prio: 'info', check: true, checkLabel: 'Adhésion faite', msg: 'Adhère à l’ADAGP avant ta première vente en galerie, pour toucher le droit de suite.', when: f => f.has('q10', 'galerie') && f.a.q11 === 'non' },
-  { id: 'R45', page: '9', kind: 'fiche', prio: 'important', event: true, msg: 'Toute cession de droits doit être écrite et précise : utilise un contrat de cession.', when: f => f.has('q9', 'droits') || f.has('q9', 'reproductions') },
-  { id: 'R46', page: '9', kind: 'fiche', prio: 'info', msg: 'Pour une exposition, demande un contrat qui prévoit et rémunère le droit de présentation publique.', when: f => f.has('q10', 'galerie') },
-  { id: 'R47', page: '9', kind: 'rappel', prio: 'info', msg: 'Déclare tes nouvelles œuvres et reproductions à l’ADAGP.', when: f => f.a.q11 === 'adagp', dates: () => [ldhNext(12, 1)] },
-  { id: 'R48', page: '10', kind: 'alerte', prio: 'urgent', check: true, checkLabel: 'Fait', msg: 'Préviens France Travail de ton statut d’artiste-auteur et demande par écrit comment déclarer tes ventes.', when: f => f.has('q12', 'are') },
-  { id: 'R49', page: '10', kind: 'rappel', prio: 'important', check: true, checkLabel: 'Simulations faites', msg: 'Simule la prime d’activité, la complémentaire santé solidaire et les aides au logement.', when: f => ['t0', 't1', 't2'].includes(f.t) || f.has('q12', 'rsa'), dates: () => [ldhNext(4, 1)], also: true },
-  { id: 'R50', page: '10', kind: 'rappel', prio: 'urgent', msg: 'Déclare tes ressources à la CAF chaque trimestre, avec la bonne règle pour tes recettes.', when: f => f.has('q12', 'rsa'), dates: () => [1, 4, 7, 10].map(m => ldhNext(m, 1)) },
-  { id: 'R51', page: '10', kind: 'fiche', prio: 'important', msg: 'Au RSA, demande le conseiller France Travail spécialisé artistes-auteurs.', when: f => f.has('q12', 'rsa') },
-  { id: 'R52', page: '10', kind: 'fiche', prio: 'info', msg: 'Le bureau d’aide sociale de la Maison des Artistes t’est ouvert.', when: f => f.a.q14 === 'oui' },
-  { id: 'R53', page: '10', kind: 'fiche', prio: 'info', msg: 'Bureau d’aide sociale de la Maison des Artistes : accessible après adhésion.', when: f => f.a.q14 === 'non' },
-  { id: 'R54', page: '10', kind: 'alerte', prio: 'important', msg: 'Les goodies sont une vente de marchandises : il te faut une activité commerciale à côté.', when: f => f.has('q9', 'produits') && !(f.a.q2 === 'active' || f.has('q12', 'micro')) },
-  { id: 'R55', page: 'livre', kind: 'alerte', prio: 'info', msg: 'Ton code APE ne correspond pas à ton activité : à vérifier.', when: f => ['autre', '9003B'].includes(f.a.q13) },
-  { id: 'R56', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Ton code APE devient 90.12Y : vérifie ton avis de situation INSEE.', when: f => f.a.q13 === '9003A', dates: (f, x) => (x.ape ? [x.ape] : []) },
-  { id: 'R57', page: 'livre', kind: 'alerte', prio: 'important', msg: 'Après 5 années de suite sans revenus artistiques, l’affiliation peut prendre fin.', when: f => f.zeros >= 3, dates: (f, x) => [x.decl] },
-  { id: 'R58', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Mets ton livre à jour : copie le prompt, colle la réponse de Claude.', when: () => true, dates: (f, x) => x.updates },
-  { id: 'R59', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Relis ta situation : tes recettes et tes activités ont peut-être changé.', when: () => true, dates: (f, x) => [x.decl] },
-  { id: 'R60', page: '5', kind: 'rappel', prio: 'important', msg: 'N’oublie pas l’abattement de 50 % des jeunes plasticiennes sur ton bénéfice (case à confirmer sur la notice de la 2042 C PRO).', when: f => f.regime === 'dc' && f.startYear !== null && f.year - f.startYear <= 4, dates: () => [ldhNext(4, 15)] }
+  { id: 'R01', t: 'Vérifier mon compte micro-entrepreneur', page: '0', kind: 'alerte', prio: 'urgent', check: true, msg: 'Vérifie que ton compte micro-entrepreneur ne te réclame plus ni déclaration ni cotisation après la date du changement.', when: f => ['modifiee', 'fermee'].includes(f.a.q2) },
+  { id: 'R02', t: 'Année de bascule : deux déclarations', page: '0', kind: 'rappel', prio: 'important', msg: 'Année de bascule : déclare d’abord ton chiffre d’affaires micro jusqu’au changement, puis tes revenus d’artiste-auteur.', when: f => ['modifiee', 'fermee'].includes(f.a.q2) && f.changeYear !== null && f.changeYear >= f.year - 1, dates: (f, x) => [x.decl] },
+  { id: 'R03', t: 'Œuvres hors micro-entreprise', page: '0', kind: 'alerte', prio: 'important', msg: 'Tes œuvres ne se facturent jamais en micro-entreprise : garde-la seulement pour les activités qui ne sont pas artistiques.', when: f => f.a.q2 === 'active' },
+  { id: 'R04', t: 'Case à signaler sur la 2042 C PRO', page: '0', kind: 'rappel', prio: 'important', msg: 'Sur la 2042 C PRO, signale tes recettes d’artiste à ne pas soumettre aux cotisations des indépendants (case à confirmer sur la notice).', when: f => f.a.q2 === 'active' || f.has('q12', 'micro'), dates: (f, x) => [x.decl] },
+  { id: 'R05', t: 'Attestation d’affiliation', page: '0', kind: 'rappel', prio: 'info', check: true, checkLabel: 'Attestation reçue', msg: 'Ton attestation d’affiliation arrive dans la Messagerie de ton espace Urssaf. Rien après 6 semaines ? Relance l’Urssaf Limousin.', when: f => !!f.startYear },
+  { id: 'R06', t: 'Dispense de précompte', page: '1', kind: 'rappel', prio: 'important', msg: 'Télécharge ta dispense de précompte de l’année suivante dans la Messagerie et remets-la à tes diffuseurs.', when: f => f.has('q10', 'diffuseurs') || f.has('q10', 'galerie'), dates: () => [ldhNext(12, 1)] },
+  { id: 'R07', t: 'Ateliers et revenu principal', page: '1', kind: 'alerte', prio: 'important', msg: 'Les ateliers ne comptent comme revenus accessoires que si tu as déjà déclaré un revenu artistique principal.', when: f => f.has('q9', 'ateliers') && !f.a.principal },
+  { id: 'R08', t: 'Plafond des revenus accessoires', page: '1', kind: 'alerte', prio: 'important', msg: 'Tes revenus accessoires approchent du plafond : au-delà, l’excédent relève des travailleurs indépendants.', when: f => f.acc !== null && f.acc >= 0.8 * f.B('plafond_accessoires') },
+  { id: 'R09', t: 'Accidents du travail', page: '1', kind: 'fiche', prio: 'info', msg: 'Ton activité d’artiste n’est pas couverte contre les accidents du travail : une assurance volontaire est possible auprès de ta CPAM.', when: () => true },
+  { id: 'R10', t: 'Déclaration annuelle', page: '2', kind: 'rappel', prio: 'urgent', msg: 'La déclaration annuelle est ouverte : déclare à l’Urssaf artistes-auteurs, puis aux impôts, avec les mêmes montants.', when: () => true, dates: (f, x) => [x.decl].concat(x.declEnd ? [ldhAddDays(x.declEnd, -15)] : []) },
+  { id: 'R11', t: 'Déclarer 0 €', page: '2', kind: 'rappel', prio: 'urgent', msg: 'Déclare quand même 0 €, sinon l’Urssaf fixera tes revenus d’office (deux dernières années + 25 %).', when: f => f.recZero, dates: (f, x) => [x.decl] },
+  { id: 'R12', t: 'Nouveau calendrier de paiement', page: '2', kind: 'rappel', prio: 'info', msg: 'Après ta déclaration, lis ton nouveau calendrier de paiement dans ton espace Urssaf.', when: f => ['micro', 'dc'].includes(f.regime), dates: () => [ldhNext(6, 25)] },
+  { id: 'R13', t: 'Moduler l’acompte', page: '3', kind: 'rappel', prio: 'urgent', msg: 'Tes acomptes sont calculés sur un forfait de 600 fois le Smic. Si tes revenus sont plus bas, demande une modulation avant cette date (15 jours avant l’échéance).', when: f => !!f.startYear && (f.lastDecl === null || f.lastDecl < f.startYear + 1), dates: (f, x) => x.echeances.filter(d => d <= x.decl).map(d => ldhAddDays(d, -15)) },
+  { id: 'R14', t: 'Revenus en baisse : moduler', page: '3', kind: 'rappel', prio: 'important', msg: 'Tes revenus baissent : tu peux moduler tes acomptes jusqu’au 30 septembre, au moins 15 jours avant l’échéance.', when: f => f.rec !== null && f.recPrev !== null && f.rec < 0.7 * f.recPrev, dates: (f, x) => x.echeances.filter(d => d.getMonth() !== 9).map(d => ldhAddDays(d, -30)) },
+  { id: 'R15', t: 'Échéance de cotisations', page: '3', kind: 'rappel', prio: 'important', msg: 'Vérifie le montant à payer dans ton espace Urssaf.', when: f => ['micro', 'dc', ''].includes(f.regime), dates: (f, x) => x.echeances },
+  { id: 'R16', t: 'Surcotisation', page: '3', kind: 'alerte', prio: 'important', msg: 'Tes revenus ne valident pas 4 trimestres : la surcotisation peut t’aider (aide possible de l’Urssaf).', when: f => f.lowAssiette && !f.has('q12', 'emploi'), dates: (f, x) => [x.decl] },
+  { id: 'R17', t: 'Surcotisation inutile', page: '3', kind: 'fiche', prio: 'info', msg: 'Ton emploi salarié valide sans doute déjà tes trimestres et tes indemnités journalières : la surcotisation est probablement inutile.', when: f => f.lowAssiette && f.has('q12', 'emploi') },
+  { id: 'R18', t: 'RIB dans l’espace Urssaf', page: '3', kind: 'rappel', prio: 'info', check: true, msg: 'Renseigne ton RIB dans ton espace Urssaf pour recevoir les remboursements automatiques.', when: () => true },
+  { id: 'R19', t: 'Mettre 16 % de côté', page: '3', kind: 'fiche', prio: 'info', msg: 'Mets de côté environ 16 % de chaque vente pour tes cotisations.', when: f => ['micro', 'dc'].includes(f.regime) },
+  { id: 'R20', t: 'Mention de franchise de TVA', page: '4', kind: 'fiche', prio: 'info', msg: 'Chaque facture porte la mention « TVA non applicable, art. 293 B du CGI ».', when: f => f.a.q7 === 'franchise' },
+  { id: 'R21', t: 'Seuil de TVA en vue', page: '4', kind: 'alerte', prio: 'important', msg: 'Tu approches du seuil de franchise de TVA pour tes œuvres et tes droits.', when: f => f.recOeuvres !== null && f.recOeuvres >= 0.8 * f.B('franchise_tva_oeuvres') && f.recOeuvres <= f.B('tolerance_tva_oeuvres') },
+  { id: 'R22', t: 'Seuil de TVA dépassé', page: '4', kind: 'alerte', prio: 'urgent', msg: 'Tu as dépassé le seuil de tolérance : la TVA s’applique dès ce mois-ci. Demande un numéro de TVA et corrige les factures du mois.', when: f => f.recOeuvres !== null && f.recOeuvres > f.B('tolerance_tva_oeuvres') },
+  { id: 'R23', t: 'Seuil de TVA des activités annexes', page: '4', kind: 'alerte', prio: 'important', msg: 'Tes activités annexes approchent de leur propre seuil de franchise de TVA.', when: f => (f.has('q9', 'ateliers') || f.has('q9', 'produits')) && f.recAnnexes !== null && f.recAnnexes >= 0.8 * f.B('franchise_tva_annexes') },
+  { id: 'R24', t: 'TVA des reproductions', page: '4', kind: 'fiche', prio: 'info', msg: 'Les reproductions et produits dérivés ne sont pas des œuvres originales : hors franchise, TVA à 20 %, pas 5,5 %.', when: f => f.has('q9', 'reproductions') || f.has('q9', 'produits') },
+  { id: 'R25', t: 'Bilan des seuils de TVA', page: '4', kind: 'rappel', prio: 'info', msg: 'Fais le bilan de tes seuils de TVA de l’année.', when: f => ['t4', 't5', 't6'].includes(f.t), dates: () => [ldhNext(12, 1)] },
+  { id: 'R26', t: 'Comparer avec la déclaration contrôlée', page: '5', kind: 'alerte', prio: 'important', msg: 'La déclaration contrôlée pourrait te faire payer moins : compare avant de déposer la 2035, début mai.', when: f => f.regime === 'micro' && f.frais !== null && f.rec && f.frais > 0.34 * f.rec, dates: () => [ldhNext(3, 1), ldhNext(4, 1)] },
+  { id: 'R27', t: 'Abattement des jeunes plasticiennes', page: '5', kind: 'fiche', prio: 'info', msg: 'L’abattement de 50 % des jeunes plasticiennes n’existe qu’en déclaration contrôlée : vérifie s’il vaut le coup.', when: f => f.regime === 'micro' && f.startYear !== null && f.year - f.startYear <= 4 && !f.recZero },
+  { id: 'R28', t: 'Fin du micro-BNC', page: '5', kind: 'alerte', prio: 'urgent', msg: 'Tu ne peux plus rester en micro-BNC : la déclaration contrôlée devient obligatoire.', when: f => f.rec !== null && f.recPrev !== null && f.rec > f.B('plafond_micro_bnc') && f.recPrev > f.B('plafond_micro_bnc') },
+  { id: 'R29', t: 'Déposer la 2035', page: '5', kind: 'rappel', prio: 'urgent', msg: 'Dépose ta 2035 (début mai) et reporte le résultat sur la 2042 C PRO.', when: f => f.regime === 'dc', dates: () => [ldhNext(4, 15)] },
+  { id: 'R30', t: 'Revenir au micro-BNC ?', page: '5', kind: 'rappel', prio: 'info', msg: 'Pour revenir au micro-BNC, renonce à la déclaration contrôlée avant le 1er février.', when: f => f.regime === 'dc', dates: () => [ldhNext(1, 15)] },
+  { id: 'R31', t: 'Mentions des factures', page: '6', kind: 'fiche', prio: 'info', msg: 'Ta facture doit porter les mentions obligatoires, dont la mention « EI ».', when: () => true },
+  { id: 'R32', t: 'Factures électroniques à émettre', page: '6', kind: 'rappel', prio: 'important', msg: 'Tes factures à ces clients devront être électroniques.', when: f => f.has('q10', 'galerie') || f.has('q10', 'entreprises'), dates: (f, x) => (x.facturation ? [ldhAddDays(x.facturation, -60)] : []) },
+  { id: 'R33', t: 'Recevoir les factures électroniques', page: '6', kind: 'alerte', prio: 'important', check: true, checkLabel: 'Plateforme choisie', msg: 'Tu dois pouvoir recevoir des factures électroniques : choisis une plateforme de réception.', when: () => true },
+  { id: 'R34', t: 'Certificat d’authenticité', page: '6', kind: 'fiche', prio: 'info', event: true, msg: 'Remets un certificat d’authenticité avec chaque œuvre vendue.', when: f => f.has('q10', 'particuliers') },
+  { id: 'R35', t: 'Garder 10 ans', page: '6', kind: 'fiche', prio: 'info', msg: 'Garde tes factures et justificatifs 10 ans.', when: () => true },
+  { id: 'R36', t: 'Vente dans l’UE', page: '7', kind: 'fiche', prio: 'important', event: true, msg: 'Vente dans l’UE : la facture est obligatoire et la TVA dépend du client (professionnel ou particulier).', when: f => f.has('q10', 'ue') },
+  { id: 'R37', t: 'Vente hors UE', page: '7', kind: 'fiche', prio: 'important', event: true, msg: 'Vente hors UE : garde la preuve de l’exportation de l’œuvre.', when: f => f.has('q10', 'horsue') },
+  { id: 'R38', t: 'Résidence hors de France', page: '7', kind: 'alerte', prio: 'urgent', msg: 'Ta résidence fiscale n’est pas en France : fais-toi conseiller avant d’utiliser le livre.', when: f => f.a.q4 && f.a.q4 !== 'france' },
+  { id: 'R39', t: 'Revenus de l’étranger', page: '7', kind: 'rappel', prio: 'info', msg: 'Tes revenus de l’étranger se déclarent en France, avec les autres.', when: f => f.has('q10', 'ue') || f.has('q10', 'horsue'), dates: (f, x) => [x.decl] },
+  { id: 'R40', t: 'Déclaration à l’IRCEC', page: '8', kind: 'rappel', prio: 'important', msg: 'Tu es affiliée à la RAAP : déclare ton assiette à l’IRCEC, qui l’appelle à part.', when: f => (f.assiettePrev !== null ? f.assiettePrev : f.assiette) !== null && (f.assiettePrev !== null ? f.assiettePrev : f.assiette) >= f.B('seuil_raap'), dates: () => [ldhNext(4, 1)] },
+  { id: 'R41', t: 'RAAP à 4 %', page: '8', kind: 'rappel', prio: 'urgent', msg: 'Tu peux demander le taux réduit de 4 % pour la RAAP, avant le 30 novembre.', when: f => { const v = f.assiettePrev !== null ? f.assiettePrev : f.assiette; return v !== null && v >= f.B('seuil_raap') && v <= f.B('plafond_raap_reduit'); }, dates: () => [ldhAddDays(ldhNext(11, 30), -30)] },
+  { id: 'R42', t: 'Relevé de carrière', page: '8', kind: 'fiche', prio: 'info', msg: 'Fais le point sur tes trimestres : demande ton relevé de carrière.', when: f => f.a.q3 === '62' },
+  { id: 'R43', t: 'Taux plein', page: '8', kind: 'fiche', prio: 'info', msg: 'Tu as droit au taux plein automatiquement ; la RAAP n’est plus due si tu touches ta pension IRCEC.', when: f => f.a.q3 === '67' },
+  { id: 'R44', t: 'Adhérer à l’ADAGP', page: '9', kind: 'rappel', prio: 'info', check: true, checkLabel: 'Adhésion faite', msg: 'Adhère à l’ADAGP avant ta première vente en galerie, pour toucher le droit de suite.', when: f => f.has('q10', 'galerie') && f.a.q11 === 'non' },
+  { id: 'R45', t: 'Contrat de cession', page: '9', kind: 'fiche', prio: 'important', event: true, msg: 'Toute cession de droits doit être écrite et précise : utilise un contrat de cession.', when: f => f.has('q9', 'droits') || f.has('q9', 'reproductions') },
+  { id: 'R46', t: 'Droit de présentation publique', page: '9', kind: 'fiche', prio: 'info', msg: 'Pour une exposition, demande un contrat qui prévoit et rémunère le droit de présentation publique.', when: f => f.has('q10', 'galerie') },
+  { id: 'R47', t: 'Déclarations à l’ADAGP', page: '9', kind: 'rappel', prio: 'info', msg: 'Déclare tes nouvelles œuvres et reproductions à l’ADAGP.', when: f => f.a.q11 === 'adagp', dates: () => [ldhNext(12, 1)] },
+  { id: 'R48', t: 'Prévenir France Travail', page: '10', kind: 'alerte', prio: 'urgent', check: true, checkLabel: 'Fait', msg: 'Préviens France Travail de ton statut d’artiste-auteur et demande par écrit comment déclarer tes ventes.', when: f => f.has('q12', 'are') },
+  { id: 'R49', t: 'Simuler mes aides', page: '10', kind: 'rappel', prio: 'important', check: true, checkLabel: 'Simulations faites', msg: 'Simule la prime d’activité, la complémentaire santé solidaire et les aides au logement.', when: f => ['t0', 't1', 't2'].includes(f.t) || f.has('q12', 'rsa'), dates: () => [ldhNext(4, 1)], also: true },
+  { id: 'R50', t: 'Déclaration trimestrielle CAF', page: '10', kind: 'rappel', prio: 'urgent', msg: 'Déclare tes ressources à la CAF chaque trimestre, avec la bonne règle pour tes recettes.', when: f => f.has('q12', 'rsa'), dates: () => [1, 4, 7, 10].map(m => ldhNext(m, 1)) },
+  { id: 'R51', t: 'Conseiller France Travail', page: '10', kind: 'fiche', prio: 'important', msg: 'Au RSA, demande le conseiller France Travail spécialisé artistes-auteurs.', when: f => f.has('q12', 'rsa') },
+  { id: 'R52', t: 'Aide de la Maison des Artistes', page: '10', kind: 'fiche', prio: 'info', msg: 'Le bureau d’aide sociale de la Maison des Artistes t’est ouvert.', when: f => f.a.q14 === 'oui' },
+  { id: 'R53', t: 'Maison des Artistes', page: '10', kind: 'fiche', prio: 'info', msg: 'Bureau d’aide sociale de la Maison des Artistes : accessible après adhésion.', when: f => f.a.q14 === 'non' },
+  { id: 'R54', t: 'Goodies : activité commerciale', page: '10', kind: 'alerte', prio: 'important', msg: 'Les goodies sont une vente de marchandises : il te faut une activité commerciale à côté.', when: f => f.has('q9', 'produits') && !(f.a.q2 === 'active' || f.has('q12', 'micro')) },
+  { id: 'R55', t: 'Code APE à vérifier', page: 'livre', kind: 'alerte', prio: 'info', msg: 'Ton code APE ne correspond pas à ton activité : à vérifier.', when: f => ['autre', '9003B'].includes(f.a.q13) },
+  { id: 'R56', t: 'Code APE 90.12Y', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Ton code APE devient 90.12Y : vérifie ton avis de situation INSEE.', when: f => f.a.q13 === '9003A', dates: (f, x) => (x.ape ? [x.ape] : []) },
+  { id: 'R57', t: 'Années sans revenus', page: 'livre', kind: 'alerte', prio: 'important', msg: 'Après 5 années de suite sans revenus artistiques, l’affiliation peut prendre fin.', when: f => f.zeros >= 3, dates: (f, x) => [x.decl] },
+  { id: 'R58', t: 'Mettre le livre à jour', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Mets ton livre à jour : copie le prompt, colle la réponse de Claude.', when: () => true, dates: (f, x) => x.updates },
+  { id: 'R59', t: 'Relire ma situation', page: 'livre', kind: 'rappel', prio: 'info', msg: 'Relis ta situation : tes recettes et tes activités ont peut-être changé.', when: () => true, dates: (f, x) => [x.decl] },
+  { id: 'R60', t: 'Abattement de 50 %', page: '5', kind: 'rappel', prio: 'important', msg: 'N’oublie pas l’abattement de 50 % des jeunes plasticiennes sur ton bénéfice (case à confirmer sur la notice de la 2042 C PRO).', when: f => f.regime === 'dc' && f.startYear !== null && f.year - f.startYear <= 4, dates: () => [ldhNext(4, 15)] }
 ];
 
 // Familles d'échéances du calendrier : une couleur et une icône chacune.
@@ -6499,25 +6499,34 @@ function ldhEvaluate(sit, bar, settings) {
   return { f, x, active };
 }
 
-// Ce qui monte sur la couverture : l'urgent, et l'important dans les 30 jours.
-function ldhCoverItems(ev, done) {
+// Une occurrence datée se coche à part : « fait » pour le 15 janvier ne coche pas le 15 avril.
+const ldhKey = (r, d) => (d ? r.id + '@' + ldhIso(d) : r.id);
+const ldhIsDated = (r) => !!(LDH_RULES.find(x => x.id === r.id) || {}).dates && !r.also;
+// Prochaine occurrence encore à faire d'une règle (ou null).
+const ldhNextOpen = (r, done) => (ldhIsDated(r) ? r.dates.find(d => !done[ldhKey(r, d)]) || null : null);
+
+// Ce qui monte sur la couverture : l'urgent, et l'important dans les 30 jours ; sans doublon avec les jours rouges.
+function ldhCoverItems(ev, done, snooze, exclude) {
+  const today = ldhIso(ldhToday());
   return ev.active.filter(r => {
-    if (r.kind === 'fiche' || r.event || done[r.id] || r.prio === 'info') return false;
-    const base = LDH_RULES.find(x => x.id === r.id);
-    if (!base.dates || r.also) return true;
-    return r.dates.length > 0 && ldhDaysTo(r.dates[0]) <= 30;
-  }).sort((a, b) => (a.prio === b.prio ? 0 : a.prio === 'urgent' ? -1 : 1));
+    if (r.kind === 'fiche' || r.event || r.prio === 'info') return false;
+    if (snooze && snooze[r.id] && snooze[r.id] > today) return false;
+    if (exclude && exclude.has(r.id)) return false;
+    if (!ldhIsDated(r)) return !done[r.id];
+    const d = ldhNextOpen(r, done);
+    return !!d && ldhDaysTo(d) <= 30;
+  }).sort((x, y) => (x.prio === y.prio ? 0 : x.prio === 'urgent' ? -1 : 1));
 }
 
 // Tous les événements datés des 12 prochains mois, pour le calendrier.
-function ldhCalendarEvents(ev) {
+function ldhCalendarEvents(ev, done) {
   const out = [];
   const end = ldhAddDays(ldhToday(), 366);
   ev.active.forEach(r => {
     if (!LDH_RULES.find(x => x.id === r.id).dates) return;
-    r.dates.filter(d => d <= end).forEach(d => out.push({ date: d, rule: r, fam: ldhFamilleOf(r.page), approx: r.approx && +d === +ev.x.decl }));
+    r.dates.filter(d => d <= end).forEach(d => out.push({ date: d, rule: r, fam: ldhFamilleOf(r.page), approx: r.approx && +d === +ev.x.decl, done: !!(done && done[ldhKey(r, d)]) }));
   });
-  return out.sort((a, b) => a.date - b.date);
+  return out.sort((x, y) => x.date - y.date);
 }
 
 // --- Recherche : insensible aux accents, avec quelques synonymes du glossaire ---
@@ -6540,7 +6549,7 @@ function ldhSearch(q, extra) {
       res.push({ type: 'para', page: p.id, title: p.title, snip: (i > 60 ? '… ' : '') + clean.slice(Math.max(0, i - 60), i + 140) + '…', term: t });
     });
   });
-  LDH_GLOSSAIRE.forEach(g => { if (hit(g.t) || hit(g.d)) res.push({ type: 'gloss', page: 'glossaire', title: 'Glossaire · ' + g.t, snip: g.d }); });
+  LDH_GLOSSAIRE.forEach(g => { if (hit(g.t) || hit(g.d)) res.push({ type: 'gloss', page: 'glossaire', title: 'Glossaire · ' + g.t, snip: g.d, term: g.t }); });
   (extra.active || []).forEach(r => { if (hit(r.msg)) res.push({ type: 'rule', page: r.page === 'livre' ? null : r.page, title: 'Mes rappels', snip: r.msg }); });
   return res.slice(0, 40);
 }
@@ -6561,45 +6570,67 @@ function ldhInline(text, key) {
   if (last < text.length) out.push(text.slice(last));
   return out;
 }
+const ldhSlug = (t) => 'sec-' + ldhNorm(t).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const ldhIsBoldLine = (l) => /^\*\*[^*]+\*\*\s*$/.test(l.trim());
+// Les rubriques d'une page, pour le petit sommaire.
+function ldhToc(md) {
+  return md.split('\n').filter(l => l.startsWith('### ') || ldhIsBoldLine(l)).map(l => (l.startsWith('### ') ? l.slice(4) : l.trim().slice(2, -2)).replace(/\s*:\s*$/, '')).filter(t => !/^à confirmer|^points à confirmer/i.test(t));
+}
 function LdhMarkdown({ md, pageId, done, toggle, lettrine }) {
   const lines = md.split('\n');
-  const blocks = [];
+  const nodes = [];
   let i = 0, chk = 0, first = true;
   while (i < lines.length) {
     const l = lines[i];
     if (!l.trim()) { i++; continue; }
-    if (l.startsWith('### ')) { blocks.push(<h3 key={i} className="ldh-h3">{l.slice(4)}</h3>); i++; continue; }
+    if (l.startsWith('### ') || ldhIsBoldLine(l)) {
+      const t = (l.startsWith('### ') ? l.slice(4) : l.trim().slice(2, -2)).replace(/\s*:\s*$/, '');
+      nodes.push({ h: t, el: <h3 key={'h' + i} id={ldhSlug(t)} className="ldh-h3">{t}</h3> }); i++; continue;
+    }
     if (l.startsWith('|')) {
       const rows = [];
       while (i < lines.length && lines[i].startsWith('|')) { if (!/^\|\s*-/.test(lines[i])) rows.push(lines[i].trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim())); i++; }
       const [h, ...b] = rows;
-      blocks.push(<div key={'t' + i} className="ldh-tablewrap"><table className="ldh-table"><thead><tr>{h.map((c, j) => <th key={j}>{ldhInline(c, 'h' + j)}</th>)}</tr></thead><tbody>{b.map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j}>{ldhInline(c, 'c' + k + j)}</td>)}</tr>)}</tbody></table></div>);
+      nodes.push({ el: <div key={'t' + i} className="ldh-tablewrap"><table className="ldh-table"><thead><tr>{h.map((c, j) => <th key={j}>{ldhInline(c, 'h' + j)}</th>)}</tr></thead><tbody>{b.map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j}>{ldhInline(c, 'c' + k + j)}</td>)}</tr>)}</tbody></table></div> });
       continue;
     }
     if (/^- \[[ x]\] /.test(l)) {
       const items = [];
       while (i < lines.length && /^- \[[ x]\] /.test(lines[i])) { const id = `chk:${pageId}:${chk++}`; items.push(<li key={id}><label className="ldh-check"><input type="checkbox" checked={!!done[id]} onChange={() => toggle(id)} /><span>{ldhInline(lines[i].slice(6), id)}</span></label></li>); i++; }
-      blocks.push(<ul key={'c' + i} className="ldh-checklist">{items}</ul>);
+      nodes.push({ el: <ul key={'c' + i} className="ldh-checklist">{items}</ul> });
       continue;
     }
     if (/^(- |\d+\. )/.test(l)) {
       const ordered = /^\d+\. /.test(l);
       const items = [];
       while (i < lines.length && /^(- |\d+\. )/.test(lines[i])) { items.push(<li key={i}>{ldhInline(lines[i].replace(/^(- |\d+\. )/, ''), 'l' + i)}</li>); i++; }
-      blocks.push(ordered ? <ol key={'o' + i} className="ldh-ol">{items}</ol> : <ul key={'u' + i} className="ldh-ul">{items}</ul>);
+      nodes.push({ el: ordered ? <ol key={'o' + i} className="ldh-ol">{items}</ol> : <ul key={'u' + i} className="ldh-ul">{items}</ul> });
       continue;
     }
     const para = [];
-    while (i < lines.length && lines[i].trim() && !/^(### |\||- |\d+\. )/.test(lines[i])) { para.push(lines[i]); i++; }
+    while (i < lines.length && lines[i].trim() && !/^(### |\||- |\d+\. )/.test(lines[i]) && !ldhIsBoldLine(lines[i])) { para.push(lines[i]); i++; }
     const text = para.join(' ');
     if (first && lettrine) {
       const lead = text.match(/^\*\*[^*]+\*\*\s*/);
       const rest = lead ? text.slice(lead[0].length) : text;
-      blocks.push(<p key={'p' + i} className="ldh-p ldh-lead"><span className="ldh-lettrine" aria-hidden="true">{rest.charAt(0).toUpperCase()}</span><span className="ldh-sr">{rest.charAt(0)}</span>{ldhInline(rest.slice(1), 'p' + i)}</p>);
-    } else blocks.push(<p key={'p' + i} className="ldh-p">{ldhInline(text, 'p' + i)}</p>);
+      nodes.push({ el: <p key={'p' + i} className="ldh-p ldh-lead"><span className="ldh-lettrine" aria-hidden="true">{rest.charAt(0).toUpperCase()}</span><span className="ldh-sr">{rest.charAt(0)}</span>{ldhInline(rest.slice(1), 'p' + i)}</p> });
+    } else if (/^\*\*(Sources|Points à confirmer)\s*:\*\*/.test(text)) {
+      const label = text.startsWith('**Sources') ? 'Sources' : 'Points à confirmer';
+      nodes.push({ el: <details key={'d' + i} className="ldh-details"><summary>{label}</summary><p className="ldh-p">{ldhInline(text.replace(/^\*\*[^*]+\*\*\s*/, ''), 'p' + i)}</p></details> });
+    } else nodes.push({ el: <p key={'p' + i} className="ldh-p">{ldhInline(text, 'p' + i)}</p> });
     first = false;
   }
-  return <div className="ldh-md">{blocks}</div>;
+  // « À confirmer » : la rubrique entière se replie.
+  const out = [];
+  for (let k = 0; k < nodes.length; k++) {
+    const n = nodes[k];
+    if (n.h && /^à confirmer/i.test(n.h)) {
+      const inner = [];
+      while (k + 1 < nodes.length && !nodes[k + 1].h) { k++; inner.push(nodes[k].el); }
+      out.push(<details key={'conf' + k} className="ldh-details"><summary>À confirmer</summary><div className="ldh-md">{inner}</div></details>);
+    } else out.push(n.el);
+  }
+  return <div className="ldh-md">{out}</div>;
 }
 
 // --- Styles propres au livre (ils s'appuient sur les couleurs du thème du livre) ---
@@ -6612,6 +6643,7 @@ const LIVRE_CSS = String.raw`
 .ldh-brand-name{font-family:var(--font-heading);font-weight:700;font-size:1.3rem;color:var(--text);white-space:nowrap}
 .ldh-stack{display:flex;flex-direction:column;gap:16px}
 .ldh-grid2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px}
+@media (min-width:1001px){.ldh-grid2.ldh-wide{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}}
 @media (max-width:1000px){.ldh-grid2{grid-template-columns:1fr}.ldh-coverlay{display:flex!important;flex-direction:column}.ldh-coverlay>.ldh-stack{display:contents}.ldh-o1{order:1}.ldh-o2{order:2}.ldh-o3{order:3}.ldh-o4{order:4}.ldh-o5{order:5}}
 .ldh-cover{position:relative;padding:30px 34px 26px}
 .ldh-cover:after{content:"";position:absolute;inset:10px;border:1px solid var(--border);border-radius:calc(var(--r3) - 6px);pointer-events:none}
@@ -6669,7 +6701,7 @@ const LIVRE_CSS = String.raw`
 .ldh-opt.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
 .ldh-input{padding:8px 12px;border-radius:var(--r1);border:1px solid var(--border2);background:var(--soft);font-size:13px;color:var(--text);min-width:0}
 .ldh-search{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;background:var(--surface-solid);border:1.5px solid var(--accent)}
-.ldh-search input{flex:1;border:0;outline:0;background:transparent;font-size:14px;color:var(--text);min-width:0}
+.ldh-search input{flex:1;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;padding:0!important;font-size:14px;color:var(--text);min-width:0}
 .ldh-result{display:block;text-align:left;width:100%;padding:11px 14px;border-radius:var(--r2);background:var(--surface-solid);border:1px solid var(--border)}
 .ldh-result mark{background:var(--tint2);color:inherit;border-radius:3px}
 .ldh-diff{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:var(--r2);background:var(--soft2);border:1px solid var(--border)}
@@ -6677,10 +6709,46 @@ const LIVRE_CSS = String.raw`
 .ldh-textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:var(--r2);background:var(--soft);border:1px solid var(--border2);font-size:12px;color:var(--text)}
 .ldh-thalie-scope{background:var(--bg);border-radius:var(--r3);padding:4px;color:var(--text);font-family:var(--font-body)}
 .ldh-footer{margin-top:8px;font-size:11px;color:var(--t5)}
+.ldh-details{border:1px solid var(--border);border-radius:var(--r2);padding:8px 12px;background:var(--soft)}
+.ldh-details summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--t6)}
+.ldh-details[open] summary{margin-bottom:8px}
+.ldh-measure{max-width:72ch}
+.ldh-toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.ldh-toc a{padding:5px 11px;border-radius:999px;background:var(--soft2);font-size:12px;color:var(--text);text-decoration:none}
+.ldh-toc a:hover{background:var(--tint)}
+.ldh-item{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:var(--r2);background:var(--soft2)}
+.ldh-item-t{font-size:13.5px;font-weight:700;line-height:1.35}
+.ldh-item-m{font-size:12.5px;line-height:1.45;color:var(--t6)}
+.ldh-item-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ldh-mini{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;border:1px solid var(--border2);background:var(--surface-solid);font-size:11.5px;font-weight:600;color:var(--text);min-height:32px}
+.ldh-mini.ok{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.ldh-pico{width:30px;height:30px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;color:#2C2927}
+.ldh-month.now{border:1.5px solid var(--accent)}
+.ldh-empties{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ldh-step{display:flex;gap:6px}
+.ldh-step span{flex:1;height:6px;border-radius:999px;background:var(--soft3)}
+.ldh-step span.on{background:var(--accent)}
+.ldh-gl{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:var(--r2);background:var(--surface-solid);border:1px solid var(--border)}
+.ldh-gl b{font-size:14px}
+@media (max-width:1000px){.ldh-desk{display:none!important}}
+@media (min-width:1001px){.ldh-mob{display:none!important}}
 `;
 
 // --- Barre du livre (même composant visuel que la barre de Thalie, contenu du livre) ---
-const LDH_NAVS = [['couverture', 'Couverture', BookOpen], ['calendrier', 'Calendrier', CalendarIcon], ['pages', 'Mes pages', Library], ['situation', 'Ma situation', UserRound], ['maj', 'Mise à jour', RefreshCw], ['agenda', 'Agenda', CalendarDays]];
+const GlobeIcon = makeIcon('Globe', 'Earth');
+const ScaleIcon = makeIcon('Scale', 'Columns2');
+const HourglassIcon = makeIcon('Hourglass', 'Clock');
+const CopyrightIcon = makeIcon('Copyright', 'Palette');
+const BadgeIcon = makeIcon('BadgeCheck', 'ShieldCheck');
+const PercentIcon = makeIcon('Percent', 'Receipt');
+const BookA = makeIcon('BookA', 'BookOpenText', 'BookOpen');
+const LDH_PAGE_ICONS = { '0': [ArrowLeftRight, 'var(--p-lav)'], '1': [BadgeIcon, 'var(--p-blue)'], '2': [FileIcon, 'var(--p-lav)'], '3': [EuroIcon, 'var(--p-peach)'], '4': [PercentIcon, 'var(--p-mint)'], '5': [ScaleIcon, 'var(--p-lav)'], '6': [Receipt, 'var(--p-mint)'], '7': [GlobeIcon, 'var(--p-mint)'], '8': [HourglassIcon, 'var(--p-peach)'], '9': [CopyrightIcon, 'var(--p-pink)'], '10': [HeartIcon, 'var(--p-blue)'] };
+function LdhPageIcon({ id, size = 30 }) {
+  const [I, bg] = LDH_PAGE_ICONS[id] || [BookOpen, 'var(--p-butter)'];
+  return <span className="ldh-pico" style={{ background: bg, width: size, height: size }} aria-hidden="true"><I className="w-4 h-4" /></span>;
+}
+
+const LDH_NAVS = [['couverture', 'Couverture', BookOpen], ['calendrier', 'Calendrier', CalendarIcon], ['pages', 'Mes pages', Library], ['glossaire', 'Glossaire', BookA], ['situation', 'Ma situation', UserRound], ['maj', 'Mise à jour', RefreshCw]];
 
 function LdhHeader({ tab, go, onLeave, hasUpdate }) {
   return (
@@ -6692,7 +6760,7 @@ function LdhHeader({ tab, go, onLeave, hasUpdate }) {
         </div>
         <nav className="tl-nav2" aria-label="Navigation du Livre d’heures">
           {LDH_NAVS.map(([id, label, Icon]) => (
-            <button key={id} className={`tl-np ${tab === id || (id === 'pages' && tab.startsWith('page:')) ? 'on' : ''}`} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined} title={id === 'agenda' ? 'Agenda (commun avec Thalie)' : label}>
+            <button key={id} className={`tl-np ${tab === id || (id === 'pages' && tab.startsWith('page:')) ? 'on' : ''}`} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined} title={label}>
               <Icon className="w-4 h-4" /><span className="lbl">{label}</span>
               {id === 'maj' && hasUpdate && <i className="dot" />}
             </button>
@@ -6707,7 +6775,7 @@ function LdhHeader({ tab, go, onLeave, hasUpdate }) {
 }
 
 function LdhDock({ tab, go }) {
-  const items = [['couverture', 'Livre', BookOpen], ['calendrier', 'Année', CalendarIcon], ['pages', 'Pages', Library], ['situation', 'Situation', UserRound], ['agenda', 'Agenda', CalendarDays]];
+  const items = [['couverture', 'Livre', BookOpen], ['calendrier', 'Année', CalendarIcon], ['pages', 'Pages', Library], ['glossaire', 'Mots', BookA], ['situation', 'Situation', UserRound]];
   return (
     <nav className="tl-dock" aria-label="Navigation mobile du Livre d’heures">
       {items.map(([id, label, Icon]) => <button key={id} className={tab === id || (id === 'pages' && tab.startsWith('page:')) ? 'on' : ''} onClick={() => go(id)}><Icon className="w-5 h-5" />{label}</button>)}
@@ -6717,8 +6785,24 @@ function LdhDock({ tab, go }) {
 
 function LdhPrio({ p }) { return <span className={`ldh-prio ${p}`}>{p === 'urgent' ? 'Urgent' : p === 'important' ? 'Important' : 'Info'}</span>; }
 
+// Un rappel : titre court, explication, et « Fait » / « Plus tard ».
+function LdhItem({ r, done, onDone, onLater, go, showPage = true }) {
+  const d = ldhNextOpen(r, done);
+  return (
+    <div className="ldh-item">
+      <div className="ldh-item-t"><LdhPrio p={r.prio} />{r.t}{d && <span className="ldh-note" style={{ fontWeight: 500 }}> · {ldhDateFr(d)}{r.approx && +d === +r.dates[0] ? ' (à confirmer)' : ''}</span>}</div>
+      <div className="ldh-item-m">{r.msg}</div>
+      <div className="ldh-item-a">
+        {onDone && r.kind !== 'fiche' && <button className="ldh-mini" onClick={() => onDone(r, d)}><Check className="w-3.5 h-3.5" />Fait</button>}
+        {onLater && r.kind !== 'fiche' && <button className="ldh-mini" onClick={() => onLater(r)}><Clock className="w-3.5 h-3.5" />Plus tard</button>}
+        {showPage && r.page !== 'livre' && go && <button className="ldh-link" style={{ fontSize: 12, marginLeft: 'auto' }} onClick={() => go('page:' + r.page)}>Page {r.page}</button>}
+      </div>
+    </div>
+  );
+}
+
 // --- Couverture ---
-function LdhCouverture({ ev, done, toggle, go, sit, bar, settings }) {
+function LdhCouverture({ ev, done, snooze, onDone, onLater, go, sit, bar }) {
   const a = sit.answers || {};
   const label = (q, v) => { const Q = LDH_QUESTIONS.find(x => x.id === q); const o = Q && Q.opts && Q.opts.find(x => x[0] === v); return o ? o[1] : ''; };
   const chips = [];
@@ -6727,8 +6811,11 @@ function LdhCouverture({ ev, done, toggle, go, sit, bar, settings }) {
   if (a.q7 === 'franchise') chips.push('Franchise de TVA');
   if (a.q13) chips.push(label('q13', a.q13));
   if (Array.isArray(a.q12) && a.q12.length && !a.q12.includes('aucune')) chips.push('+ ' + a.q12.map(v => label('q12', v)).join(' · '));
-  const cover = ldhCoverItems(ev, done);
-  const days = ldhCalendarEvents(ev).filter(e => e.rule.prio !== 'info' || e.fam === 'cot').slice(0, 3);
+  // Jours rouges : la prochaine occurrence non faite de chaque règle importante, trois au plus.
+  const seen = new Set();
+  const days = ldhCalendarEvents(ev, done).filter(e => !e.done && e.rule.prio !== 'info' && !seen.has(e.rule.id) && seen.add(e.rule.id)).slice(0, 3);
+  const inDays = new Set(days.map(e => e.rule.id));
+  const cover = ldhCoverItems(ev, done, snooze, inDays);
   const mine = new Set(ev.active.filter(r => r.page !== 'livre' && r.prio !== 'info' && !done[r.id]).map(r => r.page));
   const next = ev.x.updates[0];
   return (
@@ -6739,20 +6826,21 @@ function LdhCouverture({ ev, done, toggle, go, sit, bar, settings }) {
           <h1 className="ldh-title" style={{ fontSize: 'clamp(44px,6vw,68px)', margin: '6px 0 0' }}><span className="ldh-red">L</span>ivre d’heures</h1>
           <p style={{ margin: '8px 0 14px', fontFamily: 'var(--font-heading)', fontStyle: 'italic', fontSize: 22, color: 'var(--t5)' }}>le calendrier de l’artiste-auteur</p>
           {ev.f.filled === 0 ? (
-            <div className="wd-row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
-              <p style={{ margin: 0, fontSize: 13.5 }}>Commence par remplir ta situation : 15 questions, et le livre ne te montre que ce qui te concerne.</p>
-              <button className="wd-btn wd-coralbtn" onClick={() => go('situation')}>Remplir ma situation</button>
+            <div className="ldh-stack" style={{ gap: 10 }}>
+              <p style={{ margin: 0, fontSize: 13.5 }}>Bienvenue ! Réponds d’abord à quelques questions : le livre ne te montrera ensuite que ce qui te concerne.</p>
+              <button className="wd-btn wd-coralbtn" onClick={() => go('situation')}>Commencer (2 minutes)</button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{chips.map(c => <span key={c} className="ldh-chip">{c}</span>)}</div>
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{chips.map(c => <span key={c} className="ldh-chip">{c}</span>)}</div>
+              <button className="ldh-link" style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 600, marginTop: 6 }} onClick={() => go('situation')}>Modifier ma situation</button>
+            </>
           )}
-          {ev.f.filled > 0 && <button className="ldh-link" style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 600, marginTop: 6 }} onClick={() => go('situation')}>Modifier ma situation</button>}
         </section>
         <section className="wd-card ldh-o5">
           <h2 className="wd-h2">Mes pages</h2>
           <div className="ldh-pages">
-            {LDH_PAGES.map(p => <button key={p.id} className={`ldh-pagebtn ${mine.has(p.id) ? 'mine' : ''}`} onClick={() => go('page:' + p.id)}><span className="ldh-num">{p.id}</span><span style={{ flex: 1 }}>{p.short}</span>{mine.has(p.id) && <span className="ldh-dot" title="Pour toi en ce moment" />}</button>)}
-            <button className="ldh-pagebtn" onClick={() => go('page:glossaire')}><span className="ldh-num">G</span><span style={{ flex: 1 }}>Glossaire · {LDH_GLOSSAIRE.length} mots</span></button>
+            {LDH_PAGES.map(p => <button key={p.id} className={`ldh-pagebtn ${mine.has(p.id) ? 'mine' : ''}`} onClick={() => go('page:' + p.id)}><LdhPageIcon id={p.id} size={28} /><span style={{ flex: 1 }}>{p.short}</span>{mine.has(p.id) && <span className="ldh-dot" title="Pour toi en ce moment" />}</button>)}
           </div>
           <p className="ldh-note" style={{ margin: 0 }}>Les pages marquées d’un point te concernent en ce moment.</p>
         </section>
@@ -6764,19 +6852,21 @@ function LdhCouverture({ ev, done, toggle, go, sit, bar, settings }) {
           {days.map((e, i) => (
             <div key={i} className="ldh-day">
               <div className="ldh-daynum"><b>{e.date.getDate()}</b><small>{LDH_MOIS_C[e.date.getMonth()]}</small></div>
-              <div style={{ minWidth: 0 }}><div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.rule.msg.split(' : ')[0].split('. ')[0]}</div><div className="ldh-note">{e.approx ? 'date à confirmer · ' : ''}{e.rule.page === 'livre' ? 'Mon livre' : 'Page ' + e.rule.page}</div></div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{e.rule.t}</div>
+                <div className="ldh-note" style={{ fontSize: 12 }}>{e.approx ? 'Date à confirmer · ' : ''}{e.rule.msg.length > 110 ? e.rule.msg.slice(0, 105).replace(/\s\S*$/, '') + '…' : e.rule.msg}</div>
+                <div className="ldh-item-a" style={{ marginTop: 6 }}>
+                  <button className="ldh-mini" onClick={() => onDone(e.rule, e.date)}><Check className="w-3.5 h-3.5" />Fait</button>
+                  {e.rule.page !== 'livre' && <button className="ldh-link" style={{ fontSize: 12, marginLeft: 'auto' }} onClick={() => go('page:' + e.rule.page)}>Page {e.rule.page}</button>}
+                </div>
+              </div>
             </div>
           ))}
         </section>
         <section className="wd-card ldh-o3">
           <h2 className="wd-h2">À faire</h2>
           {cover.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Rien d’urgent en ce moment.</p>}
-          {cover.map(r => (
-            <div key={r.id} className="ldh-todo">
-              {r.check ? <input type="checkbox" checked={!!done[r.id]} onChange={() => toggle(r.id)} aria-label={'Fait : ' + r.msg} /> : <span style={{ width: 18, flex: 'none' }} />}
-              <span><LdhPrio p={r.prio} />{r.msg}{r.dates && r.dates.length > 0 && !r.also ? <span className="ldh-note"> · {ldhDateFr(r.dates[0])}</span> : null} {r.page !== 'livre' && <button className="ldh-link" style={{ fontSize: 12 }} onClick={() => go('page:' + r.page)}>page {r.page}</button>}</span>
-            </div>
-          ))}
+          {cover.map(r => <LdhItem key={r.id} r={r} done={done} onDone={onDone} onLater={onLater} go={go} />)}
         </section>
         <section className="wd-card ldh-o4" style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}>
           <div className="wd-row" style={{ flexWrap: 'wrap' }}>
@@ -6795,17 +6885,21 @@ function ldhIcs(events) {
   const d8 = (d) => ldhIso(d).replace(/-/g, '');
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Thalie//Livre d heures//FR'];
   events.forEach((e, i) => {
-    lines.push('BEGIN:VEVENT', `UID:ldh-${d8(e.date)}-${e.rule.id}-${i}@thalie`, `DTSTAMP:${d8(new Date())}T000000Z`, `DTSTART;VALUE=DATE:${d8(e.date)}`, `DTEND;VALUE=DATE:${d8(ldhAddDays(e.date, 1))}`, `SUMMARY:${esc('Livre d’heures · ' + e.rule.msg.split(' : ')[0].split('. ')[0])}`, `DESCRIPTION:${esc(e.rule.msg)}`, 'END:VEVENT');
+    lines.push('BEGIN:VEVENT', `UID:ldh-${d8(e.date)}-${e.rule.id}-${i}@thalie`, `DTSTAMP:${d8(new Date())}T000000Z`, `DTSTART;VALUE=DATE:${d8(e.date)}`, `DTEND;VALUE=DATE:${d8(ldhAddDays(e.date, 1))}`, `SUMMARY:${esc('Livre d’heures · ' + e.rule.t)}`, `DESCRIPTION:${esc(e.rule.msg)}`, 'END:VEVENT');
   });
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');
 }
-function LdhCalendrier({ ev, go, notify, sit }) {
-  const events = ldhCalendarEvents(ev);
+function LdhCalendrier({ ev, go, notify, sit, done, onDone }) {
+  const events = ldhCalendarEvents(ev, done);
   const start = ldhToday();
   const months = Array.from({ length: 12 }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1));
+  const inMonth = (m) => events.filter(e => e.date.getMonth() === m.getMonth() && e.date.getFullYear() === m.getFullYear());
+  const full = months.filter(m => inMonth(m).length > 0);
+  const empty = months.filter(m => inMonth(m).length === 0);
+  const mName = (m) => LDH_MOIS[m.getMonth()].charAt(0).toUpperCase() + LDH_MOIS[m.getMonth()].slice(1);
   const exportIcs = () => {
-    const url = URL.createObjectURL(new Blob([ldhIcs(events)], { type: 'text/calendar' }));
+    const url = URL.createObjectURL(new Blob([ldhIcs(events.filter(e => !e.done))], { type: 'text/calendar' }));
     const a = document.createElement('a'); a.href = url; a.download = 'livre-d-heures.ics'; a.click(); URL.revokeObjectURL(url);
     notify('Calendrier téléchargé : ouvre le fichier pour l’ajouter à ton agenda.');
   };
@@ -6814,30 +6908,31 @@ function LdhCalendrier({ ev, go, notify, sit }) {
       <div className="wd-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div><h1 className="ldh-title" style={{ fontSize: 38, margin: 0 }}>Les heures de l’année</h1><p className="ldh-note" style={{ margin: '4px 0 0' }}>{LDH_MOIS[start.getMonth()]} {start.getFullYear()} à {LDH_MOIS[months[11].getMonth()]} {months[11].getFullYear()} · les dates en rouge sont tes jours importants.</p></div>
         <div className="wd-sp" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(sit.answers || {}).q15 === 'agenda' && <button className="wd-btn" onClick={exportIcs}><Download className="w-3.5 h-3.5" />Exporter (.ics)</button>}
+          {(sit.answers || {}).q15 === 'agenda' && <button className="wd-btn" onClick={exportIcs}><Download className="w-3.5 h-3.5" />Exporter vers mon agenda (.ics)</button>}
         </div>
       </div>
       <div className="wd-card" style={{ padding: '10px 16px' }}>
         <div className="ldh-legend">{Object.keys(LDH_FAMILLES).map(k => { const F = LDH_FAMILLES[k]; return <span key={k}><span className="ldh-fam" style={{ background: F.color }}><F.Icon className="w-3 h-3" /></span>{F.label}</span>; })}</div>
       </div>
       <div className="ldh-months">
-        {months.map(m => {
-          const list = events.filter(e => e.date.getMonth() === m.getMonth() && e.date.getFullYear() === m.getFullYear());
-          return (
-            <section key={+m} className="wd-card ldh-month" style={{ gap: 8 }}>
-              <h3>{LDH_MOIS[m.getMonth()].charAt(0).toUpperCase() + LDH_MOIS[m.getMonth()].slice(1)} {m.getMonth() === 0 || +m === +months[0] ? m.getFullYear() : ''}</h3>
-              {list.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Rien de prévu.</p>}
-              {list.map((e, i) => { const F = LDH_FAMILLES[e.fam]; return (
-                <button key={i} className="ldh-ev" style={{ textAlign: 'left' }} onClick={() => e.rule.page !== 'livre' && go('page:' + e.rule.page)}>
-                  <span className="ldh-ev-d">{e.date.getDate()}</span>
-                  <span className="ldh-fam" style={{ background: F.color }} aria-label={F.label}><F.Icon className="w-3 h-3" /></span>
-                  <span style={e.rule.prio === 'info' ? { color: 'var(--t5)' } : undefined}>{e.rule.msg}{e.approx && <span className="ldh-note"> (date à confirmer)</span>}</span>
-                </button>
-              ); })}
-            </section>
-          );
-        })}
+        {full.map(m => (
+          <section key={+m} className={`wd-card ldh-month ${+m === +months[0] ? 'now' : ''}`} style={{ gap: 8 }}>
+            <h3>{mName(m)} {m.getMonth() === 0 || +m === +months[0] ? m.getFullYear() : ''}{+m === +months[0] && <span className="ldh-eyebrow" style={{ fontSize: 10, marginLeft: 8, fontFamily: 'var(--font-body)' }}>ce mois-ci</span>}</h3>
+            {inMonth(m).map((e, i) => { const F = LDH_FAMILLES[e.fam]; return (
+              <div key={i} className="ldh-ev" style={e.done ? { opacity: .5 } : undefined}>
+                <span className="ldh-ev-d">{e.date.getDate()}</span>
+                <span className="ldh-fam" style={{ background: F.color }} aria-label={F.label}><F.Icon className="w-3 h-3" /></span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <button style={{ textAlign: 'left', fontWeight: 700, textDecoration: e.done ? 'line-through' : 'none', color: e.rule.prio === 'info' ? 'var(--t6)' : 'var(--text)' }} onClick={() => e.rule.page !== 'livre' && go('page:' + e.rule.page)}>{e.rule.t}</button>
+                  {e.approx && <span className="ldh-note"> (à confirmer)</span>}
+                  {!e.done && <button className="ldh-link" style={{ fontSize: 11.5, marginLeft: 6 }} onClick={() => onDone(e.rule, e.date)}>fait</button>}
+                </span>
+              </div>
+            ); })}
+          </section>
+        ))}
       </div>
+      {empty.length > 0 && <div className="ldh-empties"><span className="ldh-note">Rien de prévu en</span>{empty.map(m => <span key={+m} className="ldh-chip" style={{ padding: '3px 10px', fontSize: 11.5 }}>{mName(m)}</span>)}</div>}
     </div>
   );
 }
@@ -6848,17 +6943,17 @@ function LdhPages({ ev, go, motsCles, done = {} }) {
   const results = ldhSearch(q, { motsCles, active: ev.active });
   const mine = new Set(ev.active.filter(r => r.page !== 'livre' && r.prio !== 'info' && !done[r.id]).map(r => r.page));
   const kw = ['modulation', 'acompte', 'franchise de TVA', 'goodies', 'galerie', 'facture électronique', 'France Travail', 'surcotisation', 'prime d’activité', 'ADAGP', 'droit de suite', '90.12Y', 'déclarer 0 €', 'trimestres'];
-  const mark = (s, t) => { if (!t) return s; const n = ldhNorm(s); const i = n.indexOf(t); if (i < 0) return s; return <>{s.slice(0, i)}<mark>{s.slice(i, i + t.length)}</mark>{s.slice(i + t.length)}</>; };
+  const mark = (s, t) => { if (!t) return s; const n = ldhNorm(s); const i = n.indexOf(ldhNorm(t)); if (i < 0) return s; return <>{s.slice(0, i)}<mark>{s.slice(i, i + t.length)}</mark>{s.slice(i + t.length)}</>; };
   return (
     <div className="ldh-grid2">
       <div className="ldh-stack">
         <h1 className="ldh-title" style={{ fontSize: 38, margin: 0 }}>Mes pages</h1>
-        <label className="ldh-search"><Search className="w-4 h-4" /><span className="ldh-sr">Chercher dans le livre</span><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher un mot : modulation, goodies, ADAGP…" /></label>
+        <label className="ldh-search"><Search className="w-4 h-4" /><span className="ldh-sr">Chercher dans le livre</span><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher dans tout le livre : modulation, goodies…" /></label>
         <div><p className="ldh-eyebrow" style={{ margin: '0 0 8px', color: 'var(--t5)' }}>Mots-clés</p><div className="ldh-opts">{kw.map(k => <button key={k} className={`ldh-opt ${ldhNorm(q) === ldhNorm(k) ? 'on' : ''}`} onClick={() => setQ(k)}>{k}</button>)}</div></div>
         {q.trim().length >= 2 && <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{results.length} résultat{results.length > 1 ? 's' : ''} pour « {q} »</p>}
         <div className="ldh-stack" style={{ gap: 8 }}>
           {results.map((r, i) => (
-            <button key={i} className="ldh-result" onClick={() => r.page && go('page:' + r.page)}>
+            <button key={i} className="ldh-result" onClick={() => (r.page === 'glossaire' ? go('glossaire', r.term) : r.page && go('page:' + r.page))}>
               <span className="ldh-eyebrow" style={{ display: 'block', fontSize: 10.5 }}>{r.page && r.page !== 'glossaire' ? 'Page ' + r.page : r.page === 'glossaire' ? 'Glossaire' : 'Mon livre'}</span>
               <span style={{ display: 'block', fontSize: 13, fontWeight: 600, marginTop: 2 }}>{r.title}</span>
               <span style={{ display: 'block', fontSize: 12, color: 'var(--t6)', marginTop: 3, lineHeight: 1.45 }}>{mark(r.snip, r.term)}</span>
@@ -6870,66 +6965,78 @@ function LdhPages({ ev, go, motsCles, done = {} }) {
         <div className="wd-row" style={{ marginTop: 10 }}><h2 className="wd-h2" style={{ fontSize: 15 }}>Toutes les pages</h2><span className="wd-sp ldh-note" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="ldh-dot" />pour toi en ce moment</span></div>
         {LDH_PAGES.map(p => (
           <button key={p.id} className="ldh-result" style={{ display: 'flex', gap: 12, alignItems: 'center' }} onClick={() => go('page:' + p.id)}>
-            {mine.has(p.id) ? <span className="ldh-dot" /> : <span style={{ width: 8, flex: 'none' }} />}
-            <span className="ldh-num">{p.id}</span>
-            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><b style={{ fontSize: 13 }}>{p.short}</b>{p.kw.concat(motsCles[p.id] || []).slice(0, 4).map(k => <span key={k} className="ldh-chip" style={{ padding: '2px 8px', fontSize: 10.5 }}>{k}</span>)}</span>
+            <LdhPageIcon id={p.id} />
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><b style={{ fontSize: 13 }}><span className="ldh-num" style={{ fontSize: 16, width: 'auto', marginRight: 6 }}>{p.id}</span>{p.short}</b>{p.kw.concat(motsCles[p.id] || []).slice(0, 4).map(k => <span key={k} className="ldh-chip" style={{ padding: '2px 8px', fontSize: 10.5 }}>{k}</span>)}</span>
+            {mine.has(p.id) && <span className="ldh-dot" />}
           </button>
         ))}
-        <button className="ldh-result" style={{ display: 'flex', gap: 12, alignItems: 'center' }} onClick={() => go('page:glossaire')}><span style={{ width: 8 }} /><span className="ldh-num">G</span><b style={{ fontSize: 13 }}>Glossaire · {LDH_GLOSSAIRE.length} mots</b></button>
+      </div>
+    </div>
+  );
+}
+
+// --- Le glossaire, à part, avec sa propre recherche ---
+function LdhGlossaire({ go, initial }) {
+  const [q, setQ] = useState(initial || '');
+  const [th, setTh] = useState('');
+  useEffect(() => { setQ(initial || ''); }, [initial]);
+  const themes = [...new Set(LDH_GLOSSAIRE.map(g => g.th))];
+  const nq = ldhNorm(q).trim();
+  const list = LDH_GLOSSAIRE.filter(g => (!th || g.th === th) && (!nq || ldhNorm(g.t).includes(nq) || ldhNorm(g.d).includes(nq) || ldhNorm(g.e).includes(nq)))
+    .sort((a, b) => { const sa = ldhNorm(a.t).startsWith(nq) ? 0 : ldhNorm(a.t).includes(nq) ? 1 : 2; const sb = ldhNorm(b.t).startsWith(nq) ? 0 : ldhNorm(b.t).includes(nq) ? 1 : 2; return sa - sb || a.t.localeCompare(b.t, 'fr'); });
+  const pageOf = (f) => { const m = String(f).match(/^(\d+)|6 quater/); if (!m) return null; return /6 quater/.test(f) ? '0' : m[1]; };
+  return (
+    <div className="ldh-stack">
+      <div><h1 className="ldh-title" style={{ fontSize: 38, margin: 0 }}>Glossaire</h1><p className="ldh-note" style={{ margin: '4px 0 0', fontSize: 12.5 }}>{LDH_GLOSSAIRE.length} mots qu’on croise dans les démarches. Tape un mot pour aller droit à sa définition.</p></div>
+      <label className="ldh-search"><Search className="w-4 h-4" /><span className="ldh-sr">Chercher un mot</span><input type="search" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Un mot : assiette, précompte, RAAP…" /></label>
+      <div className="ldh-opts"><button className={`ldh-opt ${!th ? 'on' : ''}`} onClick={() => setTh('')}>Tous</button>{themes.map(t => <button key={t} className={`ldh-opt ${th === t ? 'on' : ''}`} onClick={() => setTh(th === t ? '' : t)}>{t}</button>)}</div>
+      {list.length === 0 && <p className="ldh-note">Aucun mot trouvé. Essaie la recherche de <button className="ldh-link" onClick={() => go('pages')}>Mes pages</button>, qui fouille aussi le texte des pages.</p>}
+      <div className="ldh-months" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))' }}>
+        {list.map(g => (
+          <div key={g.t} className="ldh-gl">
+            <b>{g.t}</b>
+            <span style={{ fontSize: 13, lineHeight: 1.5 }}>{g.d}</span>
+            {g.e && g.e !== '—' && <span className="ldh-note" style={{ fontSize: 12 }}>Exemple : {g.e}</span>}
+            {pageOf(g.f) && LDH_PAGES.some(p => p.id === pageOf(g.f)) && <button className="ldh-link" style={{ alignSelf: 'flex-start', fontSize: 12 }} onClick={() => go('page:' + pageOf(g.f))}>Page {pageOf(g.f)}</button>}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 // --- Une page du livre ---
-function LdhPage({ id, ev, done, toggle, go, motsCles, setMotsCles, relire, setRelire }) {
+function LdhPage({ id, ev, done, toggle, onDone, onLater, go, motsCles, setMotsCles, relire, setRelire }) {
   const [kwDraft, setKwDraft] = useState('');
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
-  if (id === 'glossaire') {
-    const themes = [...new Set(LDH_GLOSSAIRE.map(g => g.th))];
-    return (
-      <div className="ldh-stack">
-        <button className="ldh-link" style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 600 }} onClick={() => go('pages')}>← Mes pages</button>
-        <article className="wd-card ldh-article">
-          <p className="ldh-eyebrow" style={{ margin: 0 }}>Glossaire</p>
-          <h1 className="ldh-title" style={{ fontSize: 36, margin: '4px 0 6px' }}>Les mots pour s’y retrouver</h1>
-          {themes.map(t => (
-            <div key={t}>
-              <h3 className="ldh-h3">{t}</h3>
-              <div className="ldh-tablewrap" style={{ marginTop: 8 }}><table className="ldh-table"><thead><tr><th>Terme</th><th>Ce que ça veut dire</th><th>Exemple</th><th>Page</th></tr></thead><tbody>
-                {LDH_GLOSSAIRE.filter(g => g.th === t).map(g => <tr key={g.t}><td><b>{g.t}</b></td><td>{g.d}</td><td>{g.e}</td><td>{g.f}</td></tr>)}
-              </tbody></table></div>
-            </div>
-          ))}
-        </article>
-      </div>
-    );
-  }
   const p = LDH_PAGES.find(x => x.id === id);
   if (!p) return <p>Page introuvable.</p>;
-  const pourToi = ev.active.filter(r => r.page === id && !done[r.id]).sort((a, b) => ['urgent', 'important', 'info'].indexOf(a.prio) - ['urgent', 'important', 'info'].indexOf(b.prio));
+  const order = ['urgent', 'important', 'info'];
+  const pourToi = ev.active.filter(r => r.page === id && (ldhIsDated(r) ? !!ldhNextOpen(r, done) : !done[r.id])).sort((a, b) => order.indexOf(a.prio) - order.indexOf(b.prio));
   const mine = motsCles[id] || [];
+  const toc = ldhToc(p.md);
   const addKw = () => { const k = kwDraft.trim(); if (!k) return; setMotsCles(m => ({ ...m, [id]: [...new Set([...(m[id] || []), k])] })); setKwDraft(''); };
+  const pourToiBox = (
+    <section className="wd-card ldh-pourtoi">
+      <h2 className="wd-h2" style={{ fontSize: 15, color: 'var(--accent-text)' }}>Pour toi</h2>
+      {pourToi.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Rien de particulier pour ta situation sur cette page.</p>}
+      {pourToi.map(r => <LdhItem key={r.id} r={r} done={done} onDone={onDone} onLater={onLater} go={go} showPage={false} />)}
+    </section>
+  );
+  const jump = (t) => { const el = document.getElementById(ldhSlug(t)); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   return (
-    <div className="ldh-grid2" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)' }}>
+    <div className="ldh-grid2 ldh-wide ldh-pagelay">
       <article className="wd-card ldh-article">
         <div className="wd-row"><button className="ldh-link" style={{ fontSize: 12.5, fontWeight: 600 }} onClick={() => go('pages')}>← Mes pages</button><span className="wd-sp ldh-eyebrow">Page {p.id} · {p.short}</span></div>
-        <h1 className="ldh-title" style={{ fontSize: 'clamp(30px,3.4vw,40px)', margin: '4px 0 10px', lineHeight: 1.05 }}>{p.title}</h1>
+        <div className="wd-row" style={{ justifyContent: 'flex-start', gap: 12, margin: '4px 0 6px' }}><LdhPageIcon id={p.id} size={40} /><h1 className="ldh-title" style={{ fontSize: 'clamp(28px,3.4vw,40px)', margin: 0, lineHeight: 1.05 }}>{p.title}</h1></div>
         {relire.includes(id) && <p className="ldh-prio important" style={{ alignSelf: 'flex-start', padding: '4px 10px' }}>À relire après la dernière mise à jour · <button className="ldh-link" onClick={() => setRelire(l => l.filter(x => x !== id))}>c’est fait</button></p>}
-        <LdhMarkdown md={p.md} pageId={p.id} done={done} toggle={toggle} lettrine />
+        {pourToi.length > 0 && <div className="ldh-mob">{pourToiBox}</div>}
+        {toc.length > 2 && <nav className="ldh-toc" aria-label="Sommaire de la page">{toc.map(t => <a key={t} href={'#' + ldhSlug(t)} onClick={(e) => { e.preventDefault(); jump(t); }}>{t}</a>)}</nav>}
+        <div className="ldh-measure"><LdhMarkdown md={p.md} pageId={p.id} done={done} toggle={toggle} lettrine /></div>
         <p className="ldh-footer">Information générale : ne remplace pas l’avis de l’Urssaf, des impôts ou d’un professionnel.</p>
       </article>
       <aside className="ldh-stack">
-        <section className="wd-card ldh-pourtoi">
-          <h2 className="wd-h2" style={{ fontSize: 15, color: 'var(--accent-text)' }}>Pour toi</h2>
-          {pourToi.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Rien de particulier pour ta situation sur cette page.</p>}
-          {pourToi.map(r => (
-            <div key={r.id} className="ldh-todo">
-              {r.check ? <input type="checkbox" checked={!!done[r.id]} onChange={() => toggle(r.id)} aria-label={'Fait : ' + r.msg} /> : <span style={{ width: 18, flex: 'none' }} />}
-              <span><LdhPrio p={r.prio} />{r.msg}{r.dates && r.dates[0] ? <span className="ldh-note"> · {ldhDateFr(r.dates[0])}</span> : null}</span>
-            </div>
-          ))}
-        </section>
+        <div className="ldh-desk">{pourToiBox}</div>
         <section className="wd-card">
           <h2 className="wd-h2" style={{ fontSize: 15 }}>Mes mots-clés</h2>
           <div className="ldh-opts">{p.kw.map(k => <span key={k} className="ldh-chip">{k}</span>)}{mine.map(k => <button key={k} className="ldh-chip" title="Retirer" onClick={() => setMotsCles(m => ({ ...m, [id]: (m[id] || []).filter(x => x !== k) }))}>{k} ×</button>)}</div>
@@ -6940,10 +7047,35 @@ function LdhPage({ id, ev, done, toggle, go, motsCles, setMotsCles, relire, setR
   );
 }
 
-// --- Ma situation ---
+// --- Ma situation : parcours guidé la première fois, puis vue d'ensemble ---
+function LdhQuestion({ q, a, setA, toggleMany }) {
+  return (
+    <div className="ldh-q">
+      <div className="ldh-qlabel"><b>{q.n}</b><span>{q.label}</span></div>
+      {q.type === 'month' && (
+        <div className="ldh-opts">
+          <input type="month" className="ldh-input" value={a.q1 && a.q1 !== 'none' ? a.q1 : ''} onChange={(e) => setA('q1', e.target.value)} aria-label={q.label} />
+          <button className={`ldh-opt ${a.q1 === 'none' ? 'on' : ''}`} onClick={() => setA('q1', 'none')}>{q.none}</button>
+        </div>
+      )}
+      {q.type !== 'month' && (
+        <div className="ldh-opts" role="group" aria-label={q.label}>
+          {q.opts.map(([v, l]) => {
+            const on = q.type === 'many' ? Array.isArray(a[q.id]) && a[q.id].includes(v) : a[q.id] === v;
+            return <button key={v} aria-pressed={on} className={`ldh-opt ${on ? 'on' : ''}`} onClick={() => (q.type === 'many' ? toggleMany(q.id, v) : setA(q.id, on ? '' : v))}>{l}</button>;
+          })}
+        </div>
+      )}
+      {q.date && ['fermee', 'modifiee'].includes(a.q2) && <label className="ldh-note" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>Date du changement <input type="month" className="ldh-input" value={a.q2date || ''} onChange={(e) => setA('q2date', e.target.value)} /></label>}
+      {q.type === 'many' && <span className="ldh-note">Plusieurs réponses possibles.</span>}
+    </div>
+  );
+}
 function LdhSituation({ sit, setSit, ev }) {
   const a = sit.answers || {};
   const c = sit.chiffres || {};
+  const groups = [...new Set(LDH_QUESTIONS.map(q => q.group))];
+  const [step, setStep] = useState(sit.guided || ev.f.filled > 0 ? -1 : 0);
   const log = (q, oldV, newV) => setSit(s => ({ ...s, history: [...(s.history || []).slice(-199), { at: new Date().toISOString(), q, old: oldV, new: newV }] }));
   const setA = (q, v) => { log(q, a[q], v); setSit(s => ({ ...s, answers: { ...(s.answers || {}), [q]: v } })); };
   const toggleMany = (q, v) => {
@@ -6954,37 +7086,41 @@ function LdhSituation({ sit, setSit, ev }) {
     setA(q, next);
   };
   const setC = (k, v) => setSit(s => ({ ...s, chiffres: { ...(s.chiffres || {}), [k]: v } }));
-  const groups = [...new Set(LDH_QUESTIONS.map(q => q.group))];
-  const cover = ldhCoverItems(ev, {});
+  const cover = ldhCoverItems(ev, {}, {});
   const hist = (sit.history || []).slice(-6).reverse();
+  const finish = () => { setSit(s => ({ ...s, guided: true })); setStep(-1); window.scrollTo(0, 0); };
+
+  if (step >= 0) {
+    const g = groups[step];
+    return (
+      <div className="ldh-stack" style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
+        <div><p className="ldh-eyebrow" style={{ margin: 0 }}>Étape {step + 1} sur {groups.length}</p><h1 className="ldh-title" style={{ fontSize: 36, margin: '4px 0 8px' }}>{g}</h1><div className="ldh-step" aria-hidden="true">{groups.map((x, i) => <span key={x} className={i <= step ? 'on' : ''} />)}</div></div>
+        <section className="wd-card">
+          {LDH_QUESTIONS.filter(q => q.group === g).map(q => <LdhQuestion key={q.id} q={q} a={a} setA={setA} toggleMany={toggleMany} />)}
+          <p className="ldh-note" style={{ margin: 0 }}>Tu ne sais pas ? Laisse la question vide, tu pourras y revenir.</p>
+        </section>
+        <div className="wd-row">
+          {step > 0 && <button className="wd-btn" onClick={() => { setStep(step - 1); window.scrollTo(0, 0); }}><ChevronLeft className="w-3.5 h-3.5" />Retour</button>}
+          {step < groups.length - 1
+            ? <button className="wd-btn wd-dark wd-sp" onClick={() => { setStep(step + 1); window.scrollTo(0, 0); }}>Suivant<ChevronRight className="w-3.5 h-3.5" /></button>
+            : <button className="wd-btn wd-coralbtn wd-sp" onClick={finish}><Check className="w-3.5 h-3.5" />Terminer</button>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ldh-stack">
-      <div><h1 className="ldh-title" style={{ fontSize: 36, margin: 0 }}>Ma situation</h1><p className="ldh-note" style={{ margin: '4px 0 0', fontSize: 12.5 }}>15 réponses qui adaptent tout le livre. Modifiables à tout moment ; tu peux laisser une question vide si tu ne sais pas.</p></div>
-      <div className="ldh-grid2" style={{ gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr)' }}>
+      <div className="wd-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div><h1 className="ldh-title" style={{ fontSize: 36, margin: 0 }}>Ma situation</h1><p className="ldh-note" style={{ margin: '4px 0 0', fontSize: 12.5 }}>15 réponses qui adaptent tout le livre. Modifiables à tout moment.</p></div>
+        <button className="wd-btn wd-sp" onClick={() => setStep(0)}>Refaire le parcours guidé</button>
+      </div>
+      <div className="ldh-grid2 ldh-wide">
         <div className="ldh-stack">
           {groups.map(g => (
             <section key={g} className="wd-card">
               <h2 className="wd-h2" style={{ fontSize: 15 }}>{g}</h2>
-              {LDH_QUESTIONS.filter(q => q.group === g).map(q => (
-                <div key={q.id} className="ldh-q">
-                  <div className="ldh-qlabel"><b>{q.n}</b><span>{q.label}</span></div>
-                  {q.type === 'month' && (
-                    <div className="ldh-opts">
-                      <input type="month" className="ldh-input" value={a.q1 && a.q1 !== 'none' ? a.q1 : ''} onChange={(e) => setA('q1', e.target.value)} aria-label={q.label} />
-                      <button className={`ldh-opt ${a.q1 === 'none' ? 'on' : ''}`} onClick={() => setA('q1', 'none')}>{q.none}</button>
-                    </div>
-                  )}
-                  {q.type !== 'month' && (
-                    <div className="ldh-opts" role="group" aria-label={q.label}>
-                      {q.opts.map(([v, l]) => {
-                        const on = q.type === 'many' ? Array.isArray(a[q.id]) && a[q.id].includes(v) : a[q.id] === v;
-                        return <button key={v} aria-pressed={on} className={`ldh-opt ${on ? 'on' : ''}`} onClick={() => (q.type === 'many' ? toggleMany(q.id, v) : setA(q.id, on ? '' : v))}>{l}</button>;
-                      })}
-                    </div>
-                  )}
-                  {q.date && ['fermee', 'modifiee'].includes(a.q2) && <label className="ldh-note" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>Date du changement <input type="month" className="ldh-input" value={a.q2date || ''} onChange={(e) => setA('q2date', e.target.value)} /></label>}
-                </div>
-              ))}
+              {LDH_QUESTIONS.filter(q => q.group === g).map(q => <LdhQuestion key={q.id} q={q} a={a} setA={setA} toggleMany={toggleMany} />)}
             </section>
           ))}
           <section className="wd-card">
@@ -7000,7 +7136,7 @@ function LdhSituation({ sit, setSit, ev }) {
           <section className="wd-card ldh-pourtoi">
             <h2 className="wd-h2" style={{ fontSize: 15 }}>Ce que ça change pour toi</h2>
             {cover.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Réponds aux questions pour voir ce qui te concerne.</p>}
-            {cover.slice(0, 8).map(r => <div key={r.id} className="ldh-todo"><span><LdhPrio p={r.prio} />{r.msg}</span></div>)}
+            {cover.slice(0, 8).map(r => <div key={r.id} className="ldh-todo"><span><LdhPrio p={r.prio} /><b>{r.t}</b></span></div>)}
             {ev.active.filter(r => r.kind === 'fiche').length > 0 && <p className="ldh-note" style={{ margin: 0 }}>Et {ev.active.filter(r => r.kind === 'fiche').length} conseils dans tes pages, rubrique « Pour toi ».</p>}
           </section>
           <section className="wd-card">
@@ -7170,6 +7306,7 @@ function LdhReglages({ bs, setBs, thalieSettings, bgImage, setBgImage, notify })
           </Section>
           <Section icon={<ImageIcon className="w-4 h-4" />} title="Images d’ambiance" desc="Un fond pour le livre. Le fichier est réduit puis gardé dans ce navigateur.">
             <div className="space-y-3">
+              <Toggle checked={!!bs.fondUni} onChange={(v) => set({ fondUni: v })} label="Fond uni" hint="Retire les taches de couleur du fond : le livre garde seulement sa couleur de fond." />
               <ImageField label="Fond du livre" value={bgImage} onSet={setBgImage} maxSide={1920} notify={notify} />
               {bgImage && <Slider label="Voile sur le fond (lisibilité)" min={0} max={95} value={bs.bgVeil} unit=" %" onChange={(v) => set({ bgVeil: v })} />}
             </div>
@@ -7182,38 +7319,44 @@ function LdhReglages({ bs, setBs, thalieSettings, bgImage, setBgImage, notify })
 
 // --- L'espace du livre ---
 const LDH_SIT_DEFAUT = { answers: {}, chiffres: {}, history: [] };
-function LivreHeures({ tab, go, onLeave, bs, setBs, thalieSettings, thalieTheme, bgImage, setBgImage, notify, mobile, agenda }) {
+function LivreHeures({ tab, go, onLeave, bs, setBs, thalieSettings, bgImage, setBgImage, notify, onWin }) {
   const [sit, setSit] = usePersistentState('thalie.livre.situation', LDH_SIT_DEFAUT);
   const [done, setDone] = usePersistentState('thalie.livre.done', {});
+  const [snooze, setSnooze] = usePersistentState('thalie.livre.snooze', {});
   const [rawBar, setBar] = usePersistentState('thalie.livre.baremes', LDH_BAREMES_DEFAUT);
   const [barHist, setBarHist] = usePersistentState('thalie.livre.baremesHist', []);
   const [relire, setRelire] = usePersistentState('thalie.livre.relire', []);
   const [motsCles, setMotsCles] = usePersistentState('thalie.livre.motscles', {});
+  const [glossQ, setGlossQ] = useState('');
   const bar = ldhBaremesOf(rawBar);
   const ev = ldhEvaluate(sit, bar, bs);
   const toggle = (id) => setDone(d => ({ ...d, [id]: !d[id] }));
+  // « Fait » : coche l'occurrence (ou le rappel) et compte une victoire dans Thalie.
+  const onDone = (r, d) => {
+    const key = d && ldhIsDated(r) ? ldhKey(r, d) : r.id;
+    setDone(x => ({ ...x, [key]: true }));
+    if (onWin) onWin();
+    notify('Fait ! Une belle étape franchie');
+  };
+  const onLater = (r) => { setSnooze(x => ({ ...x, [r.id]: ldhIso(ldhAddDays(ldhToday(), 7)) })); notify('Je te le rappelle dans une semaine.'); };
+  const goTo = (id, arg) => { if (id === 'glossaire') setGlossQ(arg || ''); go(id); };
   const hasUpdate = ev.x.updates.some(d => ldhDaysTo(d) <= 0) || (ldhDaysTo(ldhParse(bar.verifie_le) || ldhToday()) < -200);
   return (
     <>
-      <LdhHeader tab={tab} go={go} onLeave={onLeave} hasUpdate={hasUpdate} />
+      <LdhHeader tab={tab} go={goTo} onLeave={onLeave} hasUpdate={hasUpdate} />
       <div className="tl-wrap">
         <main className="tl-main2">
-          {tab === 'couverture' && <LdhCouverture ev={ev} done={done} toggle={toggle} go={go} sit={sit} bar={bar} settings={bs} />}
-          {tab === 'calendrier' && <LdhCalendrier ev={ev} go={go} notify={notify} sit={sit} />}
-          {tab === 'pages' && <LdhPages ev={ev} go={go} motsCles={motsCles} done={done} />}
-          {tab.startsWith('page:') && <LdhPage id={tab.slice(5)} ev={ev} done={done} toggle={toggle} go={go} motsCles={motsCles} setMotsCles={setMotsCles} relire={relire} setRelire={setRelire} />}
+          {tab === 'couverture' && <LdhCouverture ev={ev} done={done} snooze={snooze} onDone={onDone} onLater={onLater} go={goTo} sit={sit} bar={bar} />}
+          {tab === 'calendrier' && <LdhCalendrier ev={ev} go={goTo} notify={notify} sit={sit} done={done} onDone={onDone} />}
+          {tab === 'pages' && <LdhPages ev={ev} go={goTo} motsCles={motsCles} done={done} />}
+          {tab === 'glossaire' && <LdhGlossaire go={goTo} initial={glossQ} />}
+          {tab.startsWith('page:') && <LdhPage id={tab.slice(5)} ev={ev} done={done} toggle={toggle} onDone={onDone} onLater={onLater} go={goTo} motsCles={motsCles} setMotsCles={setMotsCles} relire={relire} setRelire={setRelire} />}
           {tab === 'situation' && <LdhSituation sit={sit} setSit={setSit} ev={ev} />}
-          {tab === 'maj' && <LdhMaj bar={bar} setBar={setBar} barHist={barHist} setBarHist={setBarHist} setRelire={setRelire} notify={notify} go={go} />}
+          {tab === 'maj' && <LdhMaj bar={bar} setBar={setBar} barHist={barHist} setBarHist={setBarHist} setRelire={setRelire} notify={notify} go={goTo} />}
           {tab === 'reglages' && <LdhReglages bs={bs} setBs={setBs} thalieSettings={thalieSettings} bgImage={bgImage} setBgImage={setBgImage} notify={notify} />}
-          {tab === 'agenda' && (
-            <div className="ldh-stack">
-              <p className="ldh-note" style={{ margin: 0 }}>Ton agenda de Thalie, tel quel. Tes jours rouges du livre sont dans le <button className="ldh-link" onClick={() => go('calendrier')}>Calendrier</button>.</p>
-              <div className="ldh-thalie-scope" style={thalieTheme.vars}>{agenda}</div>
-            </div>
-          )}
         </main>
       </div>
-      <LdhDock tab={tab} go={go} />
+      <LdhDock tab={tab} go={goTo} />
     </>
   );
 }
@@ -7573,7 +7716,7 @@ function App() {
       <style>{DESIGN_CSS}</style>
       <style>{PAGES_CSS}</style>
       {inBook && <style>{LIVRE_CSS}</style>}
-      <div className="tl-bg" aria-hidden="true" />
+      {!(inBook && bookSettings.fondUni) && <div className="tl-bg" aria-hidden="true" />}
       {(inBook ? ldhBg : images.bg) && <div className="tl-bg-img" aria-hidden="true" style={{ backgroundImage: `url(${inBook ? ldhBg : images.bg})` }} />}
       {(inBook ? ldhBg : images.bg) && <div className="tl-veil" aria-hidden="true" />}
 
@@ -7594,8 +7737,7 @@ function App() {
       )}
 
       {inBook ? (
-        <LivreHeures tab={ldhTab} go={ldhGo} onLeave={leaveBook} bs={bookSettings} setBs={setBookSettings} thalieSettings={settings} thalieTheme={thalieTheme} bgImage={ldhBg} setBgImage={setLdhBg} notify={notify} mobile={mobile}
-          agenda={<AgendaView mediaList={mediaList} postsList={postsList} setPostsList={setPostsList} notify={notify} onRitualDone={addWin} />} />
+        <LivreHeures tab={ldhTab} go={ldhGo} onLeave={leaveBook} bs={bookSettings} setBs={setBookSettings} thalieSettings={settings} bgImage={ldhBg} setBgImage={setLdhBg} notify={notify} onWin={addWin} />
       ) : (<>
       <div className="tl-topwrap">
         <header className="tl-top">

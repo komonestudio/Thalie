@@ -6801,8 +6801,47 @@ function LdhItem({ r, done, onDone, onLater, go, showPage = true }) {
   );
 }
 
+// --- Ce que j'ai déjà fait ou reporté, pour pouvoir corriger ---
+function LdhDoneList({ done, snooze, undoDone, undoLater, go }) {
+  const today = ldhIso(ldhToday());
+  const items = Object.keys(done).filter(k => done[k] && !k.startsWith('chk:')).map(k => {
+    const [id, occ] = k.split('@');
+    const r = LDH_RULES.find(x => x.id === id);
+    return r ? { k, r, occ: occ ? ldhParse(occ) : null, at: typeof done[k] === 'string' ? done[k] : '' } : null;
+  }).filter(Boolean).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  const later = Object.keys(snooze || {}).filter(id => snooze[id] > today).map(id => ({ id, r: LDH_RULES.find(x => x.id === id), until: ldhParse(snooze[id]) })).filter(x => x.r);
+  if (items.length === 0 && later.length === 0) return null;
+  return (
+    <section className="wd-card ldh-o4">
+      <details>
+        <summary className="wd-h2" style={{ fontSize: 15, cursor: 'pointer' }}>Déjà fait ({items.length}){later.length ? ` · reporté (${later.length})` : ''}</summary>
+        <div className="ldh-stack" style={{ gap: 8, marginTop: 10 }}>
+          {items.map(x => (
+            <div key={x.k} className="ldh-item" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Check className="w-4 h-4" />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <b style={{ fontSize: 13, textDecoration: 'line-through', textDecorationColor: 'var(--t4)' }}>{x.r.t}</b>
+                <span className="ldh-note" style={{ display: 'block' }}>{x.occ ? 'Échéance du ' + ldhDateFr(x.occ) + ' · ' : ''}{x.at ? 'fait le ' + new Date(x.at).toLocaleDateString('fr-FR') : 'fait'}</span>
+              </span>
+              <button className="ldh-mini" onClick={() => undoDone(x.k)}><RotateCcw className="w-3.5 h-3.5" />Pas fait</button>
+            </div>
+          ))}
+          {later.map(x => (
+            <div key={x.id} className="ldh-item" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Clock className="w-4 h-4" />
+              <span style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: 13 }}>{x.r.t}</b><span className="ldh-note" style={{ display: 'block' }}>reporté jusqu’au {ldhDateFr(x.until)}</span></span>
+              <button className="ldh-mini" onClick={() => undoLater(x.id)}>Remettre maintenant</button>
+            </div>
+          ))}
+          <p className="ldh-note" style={{ margin: 0 }}>Remettre une action « pas faite » la fait réapparaître ; la victoire déjà comptée dans Thalie reste.</p>
+        </div>
+      </details>
+    </section>
+  );
+}
+
 // --- Couverture ---
-function LdhCouverture({ ev, done, snooze, onDone, onLater, go, sit, bar }) {
+function LdhCouverture({ ev, done, snooze, onDone, onLater, undoDone, undoLater, go, sit, bar }) {
   const a = sit.answers || {};
   const label = (q, v) => { const Q = LDH_QUESTIONS.find(x => x.id === q); const o = Q && Q.opts && Q.opts.find(x => x[0] === v); return o ? o[1] : ''; };
   const chips = [];
@@ -6868,6 +6907,7 @@ function LdhCouverture({ ev, done, snooze, onDone, onLater, go, sit, bar }) {
           {cover.length === 0 && <p className="ldh-note" style={{ margin: 0 }}>Rien d’urgent en ce moment.</p>}
           {cover.map(r => <LdhItem key={r.id} r={r} done={done} onDone={onDone} onLater={onLater} go={go} />)}
         </section>
+        <LdhDoneList done={done} snooze={snooze} undoDone={undoDone} undoLater={undoLater} go={go} />
         <section className="wd-card ldh-o4" style={{ background: 'var(--primary)', color: 'var(--on-primary)' }}>
           <div className="wd-row" style={{ flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0, flex: 1 }}><b style={{ fontSize: 13.5 }}>Livre vérifié le {ldhDateFr(ldhParse(bar.verifie_le) || ldhToday())}</b><div style={{ fontSize: 12, opacity: .8 }}>Prochaine mise à jour proposée le {ldhDateFr(next)}.</div></div>
@@ -6890,7 +6930,7 @@ function ldhIcs(events) {
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');
 }
-function LdhCalendrier({ ev, go, notify, sit, done, onDone }) {
+function LdhCalendrier({ ev, go, notify, sit, done, onDone, undoDone }) {
   const events = ldhCalendarEvents(ev, done);
   const start = ldhToday();
   const months = Array.from({ length: 12 }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1));
@@ -6926,6 +6966,7 @@ function LdhCalendrier({ ev, go, notify, sit, done, onDone }) {
                   <button style={{ textAlign: 'left', fontWeight: 700, textDecoration: e.done ? 'line-through' : 'none', color: e.rule.prio === 'info' ? 'var(--t6)' : 'var(--text)' }} onClick={() => e.rule.page !== 'livre' && go('page:' + e.rule.page)}>{e.rule.t}</button>
                   {e.approx && <span className="ldh-note"> (à confirmer)</span>}
                   {!e.done && <button className="ldh-link" style={{ fontSize: 11.5, marginLeft: 6 }} onClick={() => onDone(e.rule, e.date)}>fait</button>}
+                  {e.done && <button className="ldh-link" style={{ fontSize: 11.5, marginLeft: 6 }} onClick={() => undoDone(ldhKey(e.rule, e.date))}>pas fait</button>}
                 </span>
               </div>
             ); })}
@@ -7334,10 +7375,12 @@ function LivreHeures({ tab, go, onLeave, bs, setBs, thalieSettings, bgImage, set
   // « Fait » : coche l'occurrence (ou le rappel) et compte une victoire dans Thalie.
   const onDone = (r, d) => {
     const key = d && ldhIsDated(r) ? ldhKey(r, d) : r.id;
-    setDone(x => ({ ...x, [key]: true }));
+    setDone(x => ({ ...x, [key]: new Date().toISOString() }));
     if (onWin) onWin();
     notify('Fait ! Une belle étape franchie');
   };
+  const undoDone = (key) => { setDone(x => { const y = { ...x }; delete y[key]; return y; }); notify('Action remise à faire.'); };
+  const undoLater = (id) => { setSnooze(x => { const y = { ...x }; delete y[id]; return y; }); notify('Rappel de retour sur la couverture.'); };
   const onLater = (r) => { setSnooze(x => ({ ...x, [r.id]: ldhIso(ldhAddDays(ldhToday(), 7)) })); notify('Je te le rappelle dans une semaine.'); };
   const goTo = (id, arg) => { if (id === 'glossaire') setGlossQ(arg || ''); go(id); };
   const hasUpdate = ev.x.updates.some(d => ldhDaysTo(d) <= 0) || (ldhDaysTo(ldhParse(bar.verifie_le) || ldhToday()) < -200);
@@ -7346,8 +7389,8 @@ function LivreHeures({ tab, go, onLeave, bs, setBs, thalieSettings, bgImage, set
       <LdhHeader tab={tab} go={goTo} onLeave={onLeave} hasUpdate={hasUpdate} />
       <div className="tl-wrap">
         <main className="tl-main2">
-          {tab === 'couverture' && <LdhCouverture ev={ev} done={done} snooze={snooze} onDone={onDone} onLater={onLater} go={goTo} sit={sit} bar={bar} />}
-          {tab === 'calendrier' && <LdhCalendrier ev={ev} go={goTo} notify={notify} sit={sit} done={done} onDone={onDone} />}
+          {tab === 'couverture' && <LdhCouverture ev={ev} done={done} snooze={snooze} onDone={onDone} onLater={onLater} undoDone={undoDone} undoLater={undoLater} go={goTo} sit={sit} bar={bar} />}
+          {tab === 'calendrier' && <LdhCalendrier ev={ev} go={goTo} notify={notify} sit={sit} done={done} onDone={onDone} undoDone={undoDone} />}
           {tab === 'pages' && <LdhPages ev={ev} go={goTo} motsCles={motsCles} done={done} />}
           {tab === 'glossaire' && <LdhGlossaire go={goTo} initial={glossQ} />}
           {tab.startsWith('page:') && <LdhPage id={tab.slice(5)} ev={ev} done={done} toggle={toggle} onDone={onDone} onLater={onLater} go={goTo} motsCles={motsCles} setMotsCles={setMotsCles} relire={relire} setRelire={setRelire} />}
